@@ -28,7 +28,7 @@ export default function ThanksPage() {
           </div>
           <h1 className="text-3xl font-serif tracking-tight mb-2">Thank You!</h1>
           <p className="text-neutral-700 max-w-2xl mx-auto">
-            Your consultation has been scheduled. We'll send you a confirmation email with meeting details shortly.
+            Your consultation has been scheduled. {"We'll send you a confirmation email with meeting details shortly."}
           </p>
         </div>
 
@@ -107,7 +107,7 @@ export default function ThanksPage() {
                 </div>
                 <h3 className="font-semibold mb-2">Gather Documents</h3>
                 <p className="text-sm text-neutral-600">
-                  Collect all the documents listed above. Don't worry if you don't have everything.
+                  Collect all the documents listed above. {"Don't worry if you don't have everything."}
                 </p>
               </div>
               <div className="text-center">
@@ -143,7 +143,7 @@ export default function ThanksPage() {
           <CardContent>
             <div className="text-center space-y-4">
               <p className="text-neutral-600">
-                If you need to reschedule or have any questions before the call, please don't hesitate to reach out.
+                {"If you need to reschedule or have any questions before the call, please don't hesitate to reach out."}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 

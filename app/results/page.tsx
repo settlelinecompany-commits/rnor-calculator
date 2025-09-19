@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { estimateRNOR } from "@/lib/rnor";
 import { Timeline, TimelineItem } from "@/components/Timeline";
 
-export default function ResultsPage() {
+function ResultsContent() {
   const searchParams = useSearchParams();
   const date = searchParams.get('date');
   const d7 = searchParams.get('d7');
@@ -196,7 +196,7 @@ export default function ResultsPage() {
               <h3 className="text-xl font-semibold">Ready to optimize your tax strategy?</h3>
               <p className="text-neutral-600 max-w-2xl mx-auto">
                 Get personalized advice from our certified tax professionals. 
-                We'll help you maximize your RNOR benefits and plan your financial moves strategically.
+                {"We'll help you maximize your RNOR benefits and plan your financial moves strategically."}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
@@ -223,5 +223,20 @@ export default function ResultsPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[#f6f0e8] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p>Loading your RNOR analysis...</p>
+        </div>
+      </main>
+    }>
+      <ResultsContent />
+    </Suspense>
   );
 }

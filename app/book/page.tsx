@@ -48,9 +48,9 @@ export default function BookPage() {
             
             {/* Alternative booking info */}
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="font-semibold text-blue-900 mb-2">Can't see the booking widget?</h3>
+              <h3 className="font-semibold text-blue-900 mb-2">{"Can't see the booking widget?"}</h3>
               <p className="text-sm text-blue-800 mb-3">
-                If the booking widget isn't loading, you can also:
+                If the booking widget isn&apos;t loading, you can also:
               </p>
               <ul className="text-sm text-blue-800 space-y-1 mb-4">
                 <li>• Email us at: <strong>hello@yourcompany.com</strong></li>
