@@ -1,54 +1,46 @@
 "use client";
 
-import { useMemo, Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { computePlan } from "@/lib/rnor";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { computePlan } from "@/lib/rnor";
 import { Timeline } from "@/components/Timeline";
-import { Inputs } from "@/types/rnor";
+import { Calendar, TrendingUp } from "lucide-react";
 
 function ResultsContent() {
   const searchParams = useSearchParams();
   const date = searchParams.get('date');
   const d7 = searchParams.get('d7');
 
-  // Create inputs from URL parameters
-  const inputs = useMemo((): Inputs => {
-    return {
-      landingDate: date || new Date().toISOString().slice(0, 10),
-      region: 'US',
+  const plan = useMemo(() => {
+    if (!date) return null;
+    const landingDate = new Date(date);
+    const past7yrIndiaDays = d7 ? parseInt(d7) : undefined;
+    
+    // Create inputs object for computePlan
+    const inputs = {
+      landingDate: date,
+      region: 'US' as const,
       blocks: {
-        A: { choice: 'rarely', hasSpike: false, years: 3 },
-        B: { choice: 'rarely', hasSpike: false, years: 4 },
-        C: { choice: 'rarely', hasSpike: false, years: 3 },
+        A: { choice: 'rarely' as const, hasSpike: false, years: 3 },
+        B: { choice: 'rarely' as const, hasSpike: false, years: 4 },
+        C: { choice: 'rarely' as const, hasSpike: false, years: 3 },
       },
     };
+    
+    return computePlan(inputs);
   }, [date, d7]);
 
-  // Calculate RNOR results using the computePlan function
-  const plan = useMemo(() => {
-    return computePlan(inputs);
-  }, [inputs]);
-
-  // If no parameters provided, show error message
-  if (!date) {
+  if (!plan) {
     return (
-      <main className="min-h-screen bg-[#f6f0e8] flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center">
+      <main className="min-h-screen bg-[#f6f0e8]">
+        <div className="mx-auto max-w-4xl px-6 py-10">
           <Card>
-            <CardHeader>
-              <CardTitle>Missing Inputs</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-neutral-600">
-                Go back and enter your landing date.
-              </p>
-              <Button 
-                onClick={() => window.history.back()}
-                className="w-full"
-              >
-                Go Back
+            <CardContent className="p-8 text-center">
+              <h1 className="text-2xl font-semibold mb-4">Go back and enter your landing date</h1>
+              <Button onClick={() => window.location.href = '/'}>
+                Back to Calculator
               </Button>
             </CardContent>
           </Card>
@@ -59,113 +51,122 @@ function ResultsContent() {
 
   return (
     <main className="min-h-screen bg-[#f6f0e8]">
-      <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
+      <div className="mx-auto max-w-4xl px-6 py-10">
         
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-serif tracking-tight mb-2">Your RNOR Analysis</h1>
-          <p className="text-neutral-700">
-            Based on your landing date: <strong>{new Date(date).toLocaleDateString()}</strong>
-            {d7 && <span> and {d7} days in India (past 7 years)</span>}
+        {/* Results Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-serif tracking-tight mb-2">Your RNOR Plan</h1>
+          <p className="text-neutral-600">
+            Based on your landing date: {new Date(date!).toLocaleDateString()}
           </p>
         </div>
 
-        {/* Results Summary Card */}
-        <Card>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold text-blue-600 mb-2">{plan.arrivalFY}</div>
+              <div className="text-sm text-muted-foreground">Arrival FY</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold text-green-600 mb-2">{plan.rnorYears.length}</div>
+              <div className="text-sm text-muted-foreground">RNOR Years</div>
+              <div className="text-xs text-muted-foreground mt-1">{plan.rnorYears.join(', ')}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="text-3xl font-bold text-red-600 mb-2">{plan.rorYears.length}</div>
+              <div className="text-sm text-muted-foreground">ROR Years</div>
+              <div className="text-xs text-muted-foreground mt-1">{plan.rorYears.join(', ')}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RNOR Window */}
+        {plan.window && (
+          <Card className="mb-8 border-green-200 bg-green-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-800">
+                <Calendar className="w-5 h-5" />
+                RNOR Window
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-green-700">
+                {plan.window.startFY} to {plan.window.endFY}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Timeline */}
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Results Summary</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Tax Residency Timeline
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-neutral-500 mb-2">Arrival FY</div>
-                  <div className="text-2xl font-semibold">{plan.arrivalFY}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-neutral-500 mb-2">RNOR Years</div>
-                  <div className="text-2xl font-semibold">{plan.rnorYears.length}</div>
-                  <div className="text-xs text-neutral-600 mt-1">{plan.rnorYears.join(', ')}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-neutral-500 mb-2">ROR Years</div>
-                  <div className="text-2xl font-semibold">{plan.rorYears.length}</div>
-                  <div className="text-xs text-neutral-600 mt-1">{plan.rorYears.join(', ')}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-sm text-neutral-500 mb-2">Best year to sell RSUs</div>
-                  <div className="text-2xl font-semibold">During RNOR</div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* RNOR Window */}
-            {plan.window && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <div className="text-sm text-green-800 mb-1">YOUR RNOR WINDOW</div>
-                <div className="text-2xl font-semibold text-green-900">
-                  {plan.window.startFY} to {plan.window.endFY}
-                </div>
+            <Timeline 
+              items={plan.timeline.map(row => ({
+                label: row.fyLabel,
+                status: row.finalStatus === 'NR' || row.finalStatus === 'RNOR' ? 'NR' : 'ROR'
+              }))} 
+            />
+            <div className="flex gap-4 mt-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span>Safe to sell foreign assets (RNOR/NR)</span>
               </div>
-            )}
-            
-            {/* Assumption Note */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-6">
-                <div className="text-sm text-blue-800">
-                  <strong>Note:</strong> {plan.note}
-                </div>
-              </CardContent>
-            </Card>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span>India taxes worldwide income (ROR)</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Timeline Component */}
-        <Card>
+        {/* Notes */}
+        <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Tax Residency Timeline</CardTitle>
+            <CardTitle>Notes & Assumptions</CardTitle>
           </CardHeader>
           <CardContent>
-            <Timeline timeline={plan.timeline} />
+            <p className="text-sm text-neutral-600">{plan.note}</p>
           </CardContent>
         </Card>
 
-        {/* CTA Section */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center space-y-4">
-              <h3 className="text-xl font-semibold">Ready to optimize your tax strategy?</h3>
-              <p className="text-neutral-600 max-w-2xl mx-auto">
-                Get personalized advice from our certified tax professionals. 
-                {"We'll help you maximize your RNOR benefits and plan your financial moves strategically."}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
-                  size="lg"
-                  onClick={() => (window.location.href = "/book")}
-                  className="px-8"
-                >
-                  Talk to a CA (Free 15-min)
-                </Button>
-                <Button 
-                  variant="outline"
-                  size="lg"
-                  onClick={() => window.history.back()}
-                  className="px-8"
-                >
-                  Back to Calculator
-                </Button>
-              </div>
-              <p className="text-xs text-neutral-500">
-                Indicative only. We confirm your exact RNOR status on the consultation.
-              </p>
+        {/* CTA */}
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-8 text-center">
+            <h3 className="text-xl font-semibold text-blue-800 mb-4">
+              Don&apos;t miss your RNOR window — get a tax plan
+            </h3>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => window.location.href = '/book'}
+              >
+                Talk to a CA (Free 15-min)
+              </Button>
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => window.location.href = '/book'}
+              >
+                Find out how to extend your tax-free years
+              </Button>
             </div>
+            <p className="text-sm text-blue-600 mt-4">
+              Stop optimizing. Start converting.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -175,14 +176,7 @@ function ResultsContent() {
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={
-      <main className="min-h-screen bg-[#f6f0e8] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p>Loading your RNOR analysis...</p>
-        </div>
-      </main>
-    }>
+    <Suspense fallback={<div>Loading results...</div>}>
       <ResultsContent />
     </Suspense>
   );

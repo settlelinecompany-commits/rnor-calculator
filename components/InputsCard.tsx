@@ -13,6 +13,7 @@ interface InputsCardProps {
   inputs: Inputs;
   onInputsChange: (inputs: Inputs) => void;
   onRecalculate: () => void;
+  onResetBlocks: () => void;
 }
 
 const BLOCK_CHOICES: { value: BlockChoice; label: string; days: string }[] = [
@@ -91,7 +92,7 @@ function BlockCardlet({ block, choice, hasSpike, onChoiceChange, onSpikeChange }
   );
 }
 
-export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCardProps) {
+export function InputsCard({ inputs, onInputsChange, onRecalculate, onResetBlocks }: InputsCardProps) {
   const updateInputs = (updates: Partial<Inputs>) => {
     onInputsChange({ ...inputs, ...updates });
   };
@@ -102,17 +103,6 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
       blocks: {
         ...inputs.blocks,
         [blockKey]: { ...inputs.blocks[blockKey], ...updates },
-      },
-    });
-  };
-
-  const resetBlocks = () => {
-    onInputsChange({
-      ...inputs,
-      blocks: {
-        A: { choice: 'rarely', hasSpike: false, years: 3 },
-        B: { choice: 'rarely', hasSpike: false, years: 4 },
-        C: { choice: 'rarely', hasSpike: false, years: 3 },
       },
     });
   };
@@ -131,7 +121,7 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
               onChange={(e) => updateInputs({ landingDate: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              Pick your landing date (the day you arrive in India). We&apos;ll do FY math for you.
+              Pick your landing date. We&apos;ll do the FY math.
             </p>
           </div>
           
@@ -175,7 +165,7 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
                   Answer a few quick questions about past India stays for better accuracy.
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={resetBlocks} className="text-xs text-muted-foreground">
+              <Button variant="ghost" size="sm" onClick={onResetBlocks} className="text-xs text-muted-foreground">
                 Reset
               </Button>
             </div>

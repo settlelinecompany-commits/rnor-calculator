@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef } from "react";
-import { Inputs } from "@/types/rnor";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { Inputs, PlanResult } from "@/types/rnor";
 import { InputsCard } from "@/components/InputsCard";
-import { ExplainerCard } from "@/components/ExplainerCard";
 import { ResultsPanel } from "@/components/ResultsPanel";
-import { FAQCard } from "@/components/FAQCard";
 import { computePlan } from "@/lib/rnor";
+import { ExplainerCard } from "@/components/ExplainerCard";
+import { FAQCard } from "@/components/FAQCard";
+import { Card, CardContent } from "@/components/ui/card";
 
-// Default inputs
 const defaultInputs: Inputs = {
   landingDate: new Date().toISOString().slice(0, 10),
   region: 'US',
@@ -21,52 +21,77 @@ const defaultInputs: Inputs = {
 
 export default function Page() {
   const [inputs, setInputs] = useState<Inputs>(defaultInputs);
-  const throttleRef = useRef<NodeJS.Timeout | null>(null);
+  const [throttledInputs, setThrottledInputs] = useState<Inputs>(inputs);
 
-  // Compute plan with throttling
-  const plan = useMemo(() => {
-    return computePlan(inputs);
-  }, [inputs]);
-
-  // Throttled input change handler (150-200ms)
   const handleInputsChange = useCallback((newInputs: Inputs) => {
-    if (throttleRef.current) {
-      clearTimeout(throttleRef.current);
-    }
-    
-    throttleRef.current = setTimeout(() => {
-      setInputs(newInputs);
-    }, 150);
+    setInputs(newInputs);
   }, []);
 
-  const handleRecalculate = useCallback(() => {
-    // Force recalculation by updating inputs (even if same)
-    setInputs({ ...inputs });
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setThrottledInputs(inputs);
+    }, 150); // 150ms throttle
+
+    return () => {
+      clearTimeout(handler);
+    };
   }, [inputs]);
+
+  const plan: PlanResult = useMemo(() => computePlan(throttledInputs), [throttledInputs]);
+
+  const handleResetBlocks = useCallback(() => {
+    setInputs(prev => ({
+      ...prev,
+      blocks: {
+        A: { choice: 'rarely', hasSpike: false, years: 3 },
+        B: { choice: 'rarely', hasSpike: false, years: 4 },
+        C: { choice: 'rarely', hasSpike: false, years: 3 },
+      },
+    }));
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#f6f0e8]">
-      <div className="max-w-5xl mx-auto px-4 py-6 md:py-8 space-y-6 md:space-y-8">
-        
-        {/* H1: Your RNOR Settings */}
-        <h1 className="text-3xl font-serif tracking-tight">Your RNOR Settings</h1>
-        
-        {/* Section 1: Inputs Card */}
-        <InputsCard 
+      <div className="mx-auto max-w-5xl px-4 py-6 md:py-8 space-y-6 md:space-y-8">
+        {/* New Hero Copy */}
+        <div className="text-center space-y-3">
+          <h1 className="text-3xl md:text-4xl font-serif tracking-tight">
+            Will India tax your US income when you move back?
+          </h1>
+          <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
+            Find out if you qualify for a tax-free window (RNOR) — and how to extend it.
+          </p>
+        </div>
+
+        <InputsCard
           inputs={inputs}
           onInputsChange={handleInputsChange}
-          onRecalculate={handleRecalculate}
+          onRecalculate={() => setThrottledInputs(inputs)}
+          onResetBlocks={handleResetBlocks}
         />
 
-        {/* Section 2: What is RNOR? Explainer Card */}
-        <ExplainerCard />
+        {/* Value Card */}
+        <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
+          <CardContent className="flex items-start gap-4">
+            <div className="text-2xl">💡</div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold">Why this matters</h3>
+              <p className="text-neutral-700">
+                During RNOR, foreign assets (stocks, RSUs, 401k, property) can be sold tax-free in India. 
+                Missing this window could cost you lakhs.
+              </p>
+              <p className="text-sm text-muted-foreground">
+                RNOR doesn&apos;t change US taxes; it prevents Indian tax on certain foreign gains.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Section 3: Results */}
-        <div aria-live="polite" aria-label="RNOR calculation results">
+        <div aria-live="polite">
           <ResultsPanel plan={plan} />
         </div>
 
-        {/* Section 4: FAQ Card */}
+        <ExplainerCard />
         <FAQCard />
       </div>
     </main>
