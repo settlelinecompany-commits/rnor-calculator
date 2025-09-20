@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Inputs, BlockChoice } from "@/types/rnor";
 
 interface InputsCardProps {
@@ -26,17 +25,17 @@ const BLOCKS = [
   {
     key: 'A' as const,
     title: 'Last 3 FYs before landing',
-    description: 'Most recent years before your return',
+    description: 'Most recent years before your return.',
   },
   {
     key: 'B' as const,
     title: 'Previous 4 FYs',
-    description: 'Middle period of your time abroad',
+    description: 'Middle period of your time abroad.',
   },
   {
     key: 'C' as const,
     title: 'Previous 3 FYs',
-    description: 'Earlier years of your time abroad',
+    description: 'Earlier years of your time abroad.',
   },
 ];
 
@@ -67,11 +66,11 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
   };
 
   return (
-    <Card>
+    <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
       <CardHeader>
-        <CardTitle>RNOR Calculator</CardTitle>
+        <CardTitle className="text-lg font-semibold">Your RNOR Settings</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4">
         {/* Basic Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
@@ -82,10 +81,13 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
               value={inputs.landingDate}
               onChange={(e) => updateInputs({ landingDate: e.target.value })}
             />
+            <p className="text-xs text-muted-foreground">
+              Pick your landing date (the day you arrive in India). We&apos;ll do FY math for you.
+            </p>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="region">Region (label only)</Label>
+            <Label htmlFor="region">Region</Label>
             <Select
               value={inputs.region}
               onValueChange={(value: Inputs['region']) => updateInputs({ region: value })}
@@ -101,70 +103,70 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
                 <SelectItem value="UAE">UAE</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">
+              For copy only (doesn&apos;t change calculations). Helps personalize tips.
+            </p>
           </div>
         </div>
 
         {/* Recalculate Button */}
-        <Button onClick={onRecalculate} className="w-full">
-          Recalculate
-        </Button>
+        <div className="flex justify-center">
+          <Button onClick={onRecalculate}>
+            Recalculate
+          </Button>
+        </div>
 
-        {/* Improve Accuracy Accordion */}
-        <Accordion type="single" collapsible>
-          <AccordionItem value="accuracy">
-            <AccordionTrigger>Improve accuracy</AccordionTrigger>
-            <AccordionContent className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Reset all blocks to default</span>
-                <Button variant="outline" size="sm" onClick={resetBlocks}>
-                  Reset
-                </Button>
+        {/* Accuracy Blocks - Always Visible */}
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Improve accuracy</h3>
+            <Button variant="ghost" size="sm" onClick={resetBlocks} className="text-sm">
+              Reset all blocks to default
+            </Button>
+          </div>
+          
+          {BLOCKS.map((block) => (
+            <div key={block.key} className="space-y-3 p-4 border rounded-lg">
+              <div>
+                <h4 className="font-medium">{block.title}</h4>
+                <p className="text-sm text-muted-foreground">{block.description}</p>
               </div>
               
-              {BLOCKS.map((block) => (
-                <div key={block.key} className="space-y-3 p-4 border rounded-lg">
-                  <div>
-                    <h4 className="font-medium">{block.title}</h4>
-                    <p className="text-sm text-muted-foreground">{block.description}</p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>How many months did you usually spend in India each year?</Label>
-                    <Select
-                      value={inputs.blocks[block.key].choice}
-                      onValueChange={(value: BlockChoice) => updateBlock(block.key, { choice: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BLOCK_CHOICES.map((choice) => (
-                          <SelectItem key={choice.value} value={choice.value}>
-                            <div>
-                              <div>{choice.label}</div>
-                              <div className="text-xs text-muted-foreground">{choice.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id={`spike-${block.key}`}
-                      checked={inputs.blocks[block.key].hasSpike}
-                      onCheckedChange={(checked) => updateBlock(block.key, { hasSpike: checked })}
-                    />
-                    <Label htmlFor={`spike-${block.key}`} className="text-sm">
-                      Any year in this block you stayed 6+ months?
-                    </Label>
-                  </div>
-                </div>
-              ))}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+              <div className="space-y-2">
+                <Label>How many months did you usually spend in India each year?</Label>
+                <Select
+                  value={inputs.blocks[block.key].choice}
+                  onValueChange={(value: BlockChoice) => updateBlock(block.key, { choice: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BLOCK_CHOICES.map((choice) => (
+                      <SelectItem key={choice.value} value={choice.value}>
+                        <div>
+                          <div>{choice.label}</div>
+                          <div className="text-xs text-muted-foreground">{choice.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id={`spike-${block.key}`}
+                  checked={inputs.blocks[block.key].hasSpike}
+                  onCheckedChange={(checked) => updateBlock(block.key, { hasSpike: checked })}
+                />
+                <Label htmlFor={`spike-${block.key}`} className="text-sm">
+                  Any year in this block you stayed 6+ months?
+                </Label>
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

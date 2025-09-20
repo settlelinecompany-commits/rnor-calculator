@@ -39,7 +39,7 @@ export function Alerts({ alerts }: AlertsProps) {
   return (
     <div className="space-y-3">
       {alerts.map((alert) => (
-        <Card key={alert.id} className={`${getAlertBorderColor(alert.level)}`}>
+        <Card key={alert.id} className={`${getAlertBorderColor(alert.level)} p-5 md:p-6 rounded-2xl shadow-sm`}>
           <CardContent className="pt-4">
             <div className="flex items-start gap-3">
               {getAlertIcon(alert.level)}

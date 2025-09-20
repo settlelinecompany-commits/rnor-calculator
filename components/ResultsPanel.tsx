@@ -13,17 +13,17 @@ interface ResultsPanelProps {
 
 export function ResultsPanel({ plan }: ResultsPanelProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Results Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+        <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground mb-2">Arrival FY</div>
             <div className="text-2xl font-semibold">{plan.arrivalFY}</div>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground mb-2">RNOR Years</div>
             <div className="text-2xl font-semibold">{plan.rnorYears.length}</div>
@@ -33,7 +33,7 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground mb-2">ROR Years</div>
             <div className="text-2xl font-semibold">{plan.rorYears.length}</div>
@@ -43,7 +43,7 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground mb-2">Best year to sell RSUs</div>
             <div className="text-2xl font-semibold">
@@ -59,7 +59,7 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
 
       {/* RNOR Window */}
       {plan.window && (
-        <Card className="bg-green-50 border-green-200">
+        <Card className="bg-green-50 border-green-200 p-5 md:p-6 rounded-2xl shadow-sm">
           <CardContent className="pt-6">
             <div className="text-sm text-green-800 mb-1">YOUR RNOR WINDOW</div>
             <div className="text-2xl font-semibold text-green-900">
@@ -70,7 +70,7 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
       )}
 
       {/* Notes/Assumptions */}
-      <Card className="bg-blue-50 border-blue-200">
+      <Card className="bg-blue-50 border-blue-200 p-5 md:p-6 rounded-2xl shadow-sm">
         <CardContent className="pt-6">
           <div className="text-sm text-blue-800">
             <strong>Note:</strong> {plan.note}
@@ -79,9 +79,9 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
       </Card>
 
       {/* Tax Residency Timeline */}
-      <Card>
+      <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle>Tax Residency Timeline</CardTitle>
+          <CardTitle className="text-xl font-semibold">Tax Residency Timeline</CardTitle>
         </CardHeader>
         <CardContent>
           <Timeline timeline={plan.timeline} />
@@ -92,14 +92,14 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
       <Alerts alerts={plan.alerts} />
 
       {/* Primary CTA */}
-      <Card>
+      <Card className="p-5 md:p-6 rounded-2xl shadow-sm sticky bottom-4 md:relative md:bottom-auto">
         <CardContent className="pt-6">
           <div className="text-center space-y-4">
             <h3 className="text-xl font-semibold">Ready to optimize your tax strategy?</h3>
             <p className="text-muted-foreground">
               Get personalized advice from our certified tax professionals.
             </p>
-            <Button size="lg" className="w-full">
+            <Button size="lg" className="w-full md:w-auto">
               Talk to a CA (Free 15-min)
             </Button>
             <p className="text-xs text-muted-foreground">

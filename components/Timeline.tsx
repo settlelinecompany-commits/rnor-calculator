@@ -27,7 +27,7 @@ export function Timeline({ timeline }: TimelineProps) {
         {timeline.map((row, index) => (
           <Badge
             key={index}
-            className={`${getStatusColor(row.finalStatus)} hover:opacity-80 transition-opacity`}
+            className={`${getStatusColor(row.finalStatus)} px-3 py-1.5 rounded-full text-sm hover:opacity-80 transition-opacity`}
           >
             {row.fyLabel}
           </Badge>

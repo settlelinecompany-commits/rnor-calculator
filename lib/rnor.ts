@@ -8,14 +8,22 @@ const CHOICE_TO_DAYS: Record<BlockChoice, number> = {
   mostly: 240,
 };
 
-// Get financial year for a date
+// Parse date without timezone drift (treat as UTC date)
+function parseUTCDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+// Get financial year for a date (India FY: Apr 1–Mar 31)
 function getFinancialYear(date: Date): string {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1; // 1-12
   
   if (month >= 4) {
+    // Apr-Dec: current FY
     return `${year}-${(year + 1).toString().slice(-2)}`;
   } else {
+    // Jan-Mar: previous FY
     return `${year - 1}-${year.toString().slice(-2)}`;
   }
 }
@@ -36,17 +44,17 @@ function getPreviousFinancialYear(fy: string): string {
   return `${prevStartYear}-${prevEndYear.toString().slice(-2)}`;
 }
 
-// Calculate days from landing date to end of financial year
+// Calculate days from landing date to end of financial year (inclusive)
 function getDaysFromLandingToFYEnd(landingDate: Date): number {
   const landingFY = getFinancialYear(landingDate);
-  const fyEndDate = new Date(parseInt(landingFY.split('-')[1]), 2, 31); // March 31
+  const fyEndDate = new Date(Date.UTC(parseInt(landingFY.split('-')[1]), 2, 31)); // March 31
   const diffTime = fyEndDate.getTime() - landingDate.getTime();
-  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1); // +1 for inclusive
 }
 
-// Build timeline of 10 prior FYs + landing FY + forward
+// Build timeline of 10 prior FYs + landing FY + forward until first ROR
 function buildTimeline(inputs: Inputs): FYRow[] {
-  const landingDate = new Date(inputs.landingDate);
+  const landingDate = parseUTCDate(inputs.landingDate);
   const arrivalFY = getFinancialYear(landingDate);
   const timeline: FYRow[] = [];
   
@@ -59,12 +67,12 @@ function buildTimeline(inputs: Inputs): FYRow[] {
     priorFYs.unshift(currentFY);
   }
   
-  // Map block choices to FYs
+  // Map block choices to FYs (3-4-3 blocks)
   const blockAFYs = priorFYs.slice(7, 10); // Last 3 FYs before landing
   const blockBFYs = priorFYs.slice(3, 7);  // Previous 4 FYs
   const blockCFYs = priorFYs.slice(0, 3);  // Previous 3 FYs
   
-  // Calculate days for each FY
+  // Calculate days for each prior FY
   priorFYs.forEach(fy => {
     let days = 0;
     
@@ -99,7 +107,7 @@ function buildTimeline(inputs: Inputs): FYRow[] {
     });
   });
   
-  // Add landing FY
+  // Add landing FY (computed days from landing to Mar 31)
   const landingDays = getDaysFromLandingToFYEnd(landingDate);
   timeline.push({
     fyLabel: arrivalFY,
@@ -110,7 +118,7 @@ function buildTimeline(inputs: Inputs): FYRow[] {
     finalStatus: 'NR', // Will be calculated later
   });
   
-  // Add next FY (assume resident)
+  // Add next FY (assume resident ~full-year)
   const nextFY = getNextFinancialYear(arrivalFY);
   timeline.push({
     fyLabel: nextFY,
@@ -127,7 +135,7 @@ function buildTimeline(inputs: Inputs): FYRow[] {
 // Calculate resident test for each FY
 function calculateResidentTests(timeline: FYRow[]): void {
   timeline.forEach((row, index) => {
-    // Resident if days >= 182 OR (days >= 60 AND preceding 4 FYs total >= 365)
+    // Resident if days >= 182, OR (days >= 60 AND sum of preceding 4 FYs >= 365)
     const days = row.daysInIndia;
     let isResident = days >= 182;
     
@@ -161,9 +169,16 @@ function calculateSums(timeline: FYRow[]): void {
   });
 }
 
-// Calculate final status (RNOR vs ROR)
+// Calculate final status (RNOR vs ROR) and continue until first ROR
 function calculateFinalStatus(timeline: FYRow[]): void {
-  timeline.forEach((row) => {
+  let foundFirstROR = false;
+  
+  timeline.forEach((row, index) => {
+    if (foundFirstROR) {
+      // Stop after first ROR
+      return;
+    }
+    
     if (row.residentTest === 'NR') {
       row.finalStatus = 'NR';
     } else {
@@ -172,29 +187,48 @@ function calculateFinalStatus(timeline: FYRow[]): void {
       // 2. Sum of last 7 FYs days >= 730
       const isROR = row.residentYearsInLast10 >= 2 && row.last7Sum >= 730;
       row.finalStatus = isROR ? 'ROR' : 'RNOR';
+      
+      if (isROR) {
+        foundFirstROR = true;
+      }
     }
   });
 }
 
-// Find RNOR window
-function findRNORWindow(timeline: FYRow[]): { startFY: string; endFY: string } | null {
+// Find RNOR window (US-India overlay)
+function findRNORWindow(timeline: FYRow[], landingDate: Date): { startFY: string; endFY: string } | null {
+  const landingYear = landingDate.getUTCFullYear();
   const rnorFYs = timeline.filter(row => row.finalStatus === 'RNOR');
   
   if (rnorFYs.length === 0) return null;
   
+  // US resident in landing calendar year, US non-resident from Jan 1 next CY
+  const usNonResidentStartYear = landingYear + 1;
+  
+  // Find intersection where India ∈ {NR, RNOR} AND US = Non-Resident
+  const validFYs = rnorFYs.filter(fy => {
+    const fyStartYear = parseInt(fy.fyLabel.split('-')[0]);
+    return fyStartYear >= usNonResidentStartYear;
+  });
+  
+  if (validFYs.length === 0) return null;
+  
   return {
-    startFY: rnorFYs[0].fyLabel,
-    endFY: rnorFYs[rnorFYs.length - 1].fyLabel,
+    startFY: validFYs[0].fyLabel,
+    endFY: validFYs[validFYs.length - 1].fyLabel,
   };
 }
 
 // Generate alerts
-function generateAlerts(timeline: FYRow[]): PlanResult['alerts'] {
+function generateAlerts(timeline: FYRow[], landingDate: Date): PlanResult['alerts'] {
   const alerts: PlanResult['alerts'] = [];
-  const latestRow = timeline[timeline.length - 1];
+  const arrivalFY = getFinancialYear(landingDate);
+  const landingRow = timeline.find(row => row.fyLabel === arrivalFY);
   
-  // Last-7 sum >= 650 warning
-  if (latestRow.last7Sum >= 650) {
+  if (!landingRow) return alerts;
+  
+  // Last-7 sum >= 650 and < 730 in landing FY
+  if (landingRow.last7Sum >= 650 && landingRow.last7Sum < 730) {
     alerts.push({
       id: 'near-730',
       level: 'warn',
@@ -203,8 +237,8 @@ function generateAlerts(timeline: FYRow[]): PlanResult['alerts'] {
     });
   }
   
-  // Resident-years-in-last-10 >= 2 warning
-  if (latestRow.residentYearsInLast10 >= 2) {
+  // Resident-years in last-10 >= 2 in landing FY
+  if (landingRow.residentYearsInLast10 >= 2) {
     alerts.push({
       id: 'risk-2-of-10',
       level: 'warn',
@@ -213,23 +247,23 @@ function generateAlerts(timeline: FYRow[]): PlanResult['alerts'] {
     });
   }
   
-  // No clean US overlap info
-  const rnorFYs = timeline.filter(row => row.finalStatus === 'RNOR');
-  if (rnorFYs.length === 0) {
+  // No clean US overlap
+  const window = findRNORWindow(timeline, landingDate);
+  if (!window) {
     alerts.push({
       id: 'no-overlap',
       level: 'info',
-      text: 'No clear RNOR window found. Consider timing your return.',
+      text: 'No clear US-India overlap window found. Consider timing your return.',
       cta: 'Get a date strategy',
     });
   }
   
-  // Extension feasible info
-  if (latestRow.finalStatus === 'NR' || latestRow.finalStatus === 'RNOR') {
+  // RNOR extension feasible
+  if (landingRow.finalStatus === 'NR' || landingRow.finalStatus === 'RNOR') {
     alerts.push({
       id: 'extension-feasible',
       level: 'info',
-      text: `Keep FY ${latestRow.fyLabel} ≤59 days to guarantee NR status.`,
+      text: `Keep FY ${landingRow.fyLabel} ≤59 days to extend RNOR.`,
       cta: 'Get a travel plan',
     });
   }
@@ -239,21 +273,22 @@ function generateAlerts(timeline: FYRow[]): PlanResult['alerts'] {
 
 // Main computation function
 export function computePlan(inputs: Inputs): PlanResult {
+  const landingDate = parseUTCDate(inputs.landingDate);
   const timeline = buildTimeline(inputs);
   calculateResidentTests(timeline);
   calculateSums(timeline);
   calculateFinalStatus(timeline);
   
-  const arrivalFY = getFinancialYear(new Date(inputs.landingDate));
+  const arrivalFY = getFinancialYear(landingDate);
   const rnorFYs = timeline.filter(row => row.finalStatus === 'RNOR').map(row => row.fyLabel);
   const rorFYs = timeline.filter(row => row.finalStatus === 'ROR').map(row => row.fyLabel);
-  const window = findRNORWindow(timeline);
+  const window = findRNORWindow(timeline, landingDate);
   
   const bestTimeToRealizeRSUs = rnorFYs.length > 0 ? 'During RNOR' : 'Not Ideal';
   
-  const note = `Based on midpoint estimates: ${inputs.blocks.A.choice} (${CHOICE_TO_DAYS[inputs.blocks.A.choice]} days), ${inputs.blocks.B.choice} (${CHOICE_TO_DAYS[inputs.blocks.B.choice]} days), ${inputs.blocks.C.choice} (${CHOICE_TO_DAYS[inputs.blocks.C.choice]} days). Last-7 sum: ${timeline[timeline.length - 1].last7Sum} days. Resident years in last 10: ${timeline[timeline.length - 1].residentYearsInLast10}.`;
+  const note = `Based on midpoint estimates: ${inputs.blocks.A.choice} (${CHOICE_TO_DAYS[inputs.blocks.A.choice]} days), ${inputs.blocks.B.choice} (${CHOICE_TO_DAYS[inputs.blocks.B.choice]} days), ${inputs.blocks.C.choice} (${CHOICE_TO_DAYS[inputs.blocks.C.choice]} days). Resident from landing→Mar 31 and full next FY. Last-7 sum: ${timeline[timeline.length - 1].last7Sum} days. Resident years in last 10: ${timeline[timeline.length - 1].residentYearsInLast10}.`;
   
-  const alerts = generateAlerts(timeline);
+  const alerts = generateAlerts(timeline, landingDate);
   
   return {
     arrivalFY,
