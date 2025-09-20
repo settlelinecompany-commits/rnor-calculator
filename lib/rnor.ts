@@ -1,6 +1,6 @@
 import { Inputs, PlanResult, FYRow } from "@/types/rnor";
 
-// Convert slider choices to per-FY day estimates
+// Convert slider choices to per-FY day estimates using upper bounds
 function convertBlocksToFYDays(inputs: Inputs): { [fy: string]: number } {
   const landingDate = new Date(inputs.landingDate);
   const landingYear = landingDate.getFullYear();
@@ -20,11 +20,11 @@ function convertBlocksToFYDays(inputs: Inputs): { [fy: string]: number } {
     fyList.push(`${fyYear}-${(fyYear + 1).toString().slice(-2)}`);
   }
   
-  // Map slider choices to day estimates
+  // Map slider choices to upper-bound day estimates
   const choiceToDays = {
-    'rarely': 30,
-    'sometimes': 90,
-    'frequently': 150,
+    'rarely': 60,
+    'sometimes': 120,
+    'frequently': 180,
     'mostly': 240
   };
   
@@ -49,62 +49,22 @@ function convertBlocksToFYDays(inputs: Inputs): { [fy: string]: number } {
     fyIndex++;
   }
   
-  // Apply 6+ month spikes (bump closest FY to landing date in each block)
-  fyIndex = 0;
-  
-  // Block C spike
-  if (inputs.blocks.C.hasSpike) {
-    const spikeIndex = fyIndex + inputs.blocks.C.years - 1; // Closest to landing
-    fyDays[fyList[spikeIndex]] = 190; // ≥183 days
-  }
-  fyIndex += inputs.blocks.C.years;
-  
-  // Block B spike
-  if (inputs.blocks.B.hasSpike) {
-    const spikeIndex = fyIndex + inputs.blocks.B.years - 1; // Closest to landing
-    fyDays[fyList[spikeIndex]] = 190; // ≥183 days
-  }
-  fyIndex += inputs.blocks.B.years;
-  
-  // Block A spike
-  if (inputs.blocks.A.hasSpike) {
-    const spikeIndex = fyIndex + inputs.blocks.A.years - 1; // Closest to landing
-    fyDays[fyList[spikeIndex]] = 190; // ≥183 days
-  }
-  
   return fyDays;
 }
 
-// Generate detailed notes with slider choices and FY bumps
+// Generate detailed notes with slider choices
 function generateDetailedNotes(inputs: Inputs, fyDays: { [fy: string]: number }): string {
   const choiceLabels = {
-    'rarely': 'Rarely (0–60 days/year)',
-    'sometimes': 'Sometimes (61–120 days/year)',
-    'frequently': 'Often (121–180 days/year)',
-    'mostly': 'Mostly (181–240 days/year)'
+    'rarely': 'Rarely (0–60 days)',
+    'sometimes': 'Sometimes (61–120 days)',
+    'frequently': 'Often (121–180 days)',
+    'mostly': 'Mostly (181–240 days)'
   };
   
   let notes = "Slider choices per block:\n";
-  notes += `• Last 3 FYs: ${choiceLabels[inputs.blocks.A.choice]}`;
-  if (inputs.blocks.A.hasSpike) notes += " (with 6+ month spike)";
-  notes += "\n";
-  
-  notes += `• Previous 4 FYs: ${choiceLabels[inputs.blocks.B.choice]}`;
-  if (inputs.blocks.B.hasSpike) notes += " (with 6+ month spike)";
-  notes += "\n";
-  
-  notes += `• Earlier 3 FYs: ${choiceLabels[inputs.blocks.C.choice]}`;
-  if (inputs.blocks.C.hasSpike) notes += " (with 6+ month spike)";
-  notes += "\n\n";
-  
-  // Find which FYs got the 6+ month bump
-  const bumpedFYs = Object.entries(fyDays)
-    .filter(([, days]) => days === 190)
-    .map(([fy]) => fy);
-  
-  if (bumpedFYs.length > 0) {
-    notes += `FYs with 6+ month bump: ${bumpedFYs.join(', ')}\n\n`;
-  }
+  notes += `• Last 3 FYs: ${choiceLabels[inputs.blocks.A.choice]}\n`;
+  notes += `• Previous 4 FYs: ${choiceLabels[inputs.blocks.B.choice]}\n`;
+  notes += `• Earlier 3 FYs: ${choiceLabels[inputs.blocks.C.choice]}\n\n`;
   
   // Calculate last-7 years total and resident years in last-10
   const fyList = Object.keys(fyDays).sort();
@@ -115,7 +75,7 @@ function generateDetailedNotes(inputs: Inputs, fyDays: { [fy: string]: number })
   notes += `Last-7 years total: ${last7Sum} days\n`;
   notes += `Resident years in last-10: ${residentYearsInLast10}\n\n`;
   
-  notes += "Estimates use midpoint values. RNOR eligibility depends on 182-day test and 60/365-day test.";
+  notes += "We use upper bounds of each range to stay conservative. RNOR eligibility depends on 182-day test and 60/365-day test.";
   
   return notes;
 }
@@ -279,7 +239,7 @@ export function computePlan(inputs: Inputs): PlanResult {
     }
   }
   
-  // Generate alerts
+  // Generate alerts with human phrasing
   const alerts: PlanResult['alerts'] = [];
   
   // Near 730 days warning
@@ -299,7 +259,7 @@ export function computePlan(inputs: Inputs): PlanResult {
     alerts.push({
       id: '2-of-10-risk',
       level: 'warn',
-      text: `You have ${residentYearsInLast10} resident year in the last 10. One more could trigger ROR status.`,
+      text: `You've likely spent many days in India — your tax-free years may shrink.`,
       cta: 'Run a residency audit'
     });
   }
@@ -309,7 +269,7 @@ export function computePlan(inputs: Inputs): PlanResult {
     alerts.push({
       id: 'extension-tip',
       level: 'info',
-      text: `To extend RNOR: keep visits under 59 days in FY ${arrivalFY.split('-')[1]}.`,
+      text: `Keep FY ${arrivalFY.split('-')[1]} visits short (≤59 days) to extend your window.`,
       cta: 'Get a travel plan'
     });
   }

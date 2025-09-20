@@ -2,17 +2,16 @@ export type BlockChoice = 'rarely' | 'sometimes' | 'frequently' | 'mostly';
 
 export interface BlockInput {
   choice: BlockChoice;
-  hasSpike: boolean;
-  years: number;
+  years: number; // Number of years this block represents
 }
 
 export interface Inputs {
   landingDate: string;
   region: 'US' | 'UK' | 'Australia' | 'Singapore' | 'UAE';
   blocks: {
-    A: BlockInput;
-    B: BlockInput;
-    C: BlockInput;
+    A: BlockInput; // Last 3 FYs before landing
+    B: BlockInput; // Previous 4 FYs
+    C: BlockInput; // Previous 3 FYs
   };
 }
 
@@ -21,9 +20,9 @@ export type Residency = 'NR' | 'Resident' | 'RNOR' | 'ROR';
 export interface FYRow {
   fyLabel: string;
   daysInIndia: number;
-  residentTest: 'NR' | 'Resident';
-  last7Sum: number;
-  residentYearsInLast10: number;
+  residentTest: 'NR' | 'Resident'; // Whether they passed the basic resident test
+  last7Sum: number; // Sum of days in India in last 7 FYs
+  residentYearsInLast10: number; // Count of resident years in last 10 FYs
   finalStatus: Residency;
 }
 

@@ -20,9 +20,9 @@ const defaultInputs: Inputs = {
   landingDate: getDefaultLandingDate(),
   region: 'US',
   blocks: {
-    A: { choice: 'sometimes', hasSpike: false, years: 3 },
-    B: { choice: 'sometimes', hasSpike: false, years: 4 },
-    C: { choice: 'sometimes', hasSpike: false, years: 3 },
+    A: { choice: 'sometimes', years: 3 },
+    B: { choice: 'sometimes', years: 4 },
+    C: { choice: 'sometimes', years: 3 },
   },
 };
 
@@ -50,9 +50,9 @@ export default function Page() {
     setInputs(prev => ({
       ...prev,
       blocks: {
-        A: { choice: 'sometimes', hasSpike: false, years: 3 },
-        B: { choice: 'sometimes', hasSpike: false, years: 4 },
-        C: { choice: 'sometimes', hasSpike: false, years: 3 },
+        A: { choice: 'sometimes', years: 3 },
+        B: { choice: 'sometimes', years: 4 },
+        C: { choice: 'sometimes', years: 3 },
       },
     }));
   }, []);

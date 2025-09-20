@@ -11,26 +11,23 @@ import { Calendar, TrendingUp } from "lucide-react";
 function ResultsContent() {
   const searchParams = useSearchParams();
   const date = searchParams.get('date');
-  const d7 = searchParams.get('d7');
 
   const plan = useMemo(() => {
     if (!date) return null;
-    const landingDate = new Date(date);
-    const past7yrIndiaDays = d7 ? parseInt(d7) : undefined;
     
     // Create inputs object for computePlan
     const inputs = {
       landingDate: date,
       region: 'US' as const,
       blocks: {
-        A: { choice: 'rarely' as const, hasSpike: false, years: 3 },
-        B: { choice: 'rarely' as const, hasSpike: false, years: 4 },
-        C: { choice: 'rarely' as const, hasSpike: false, years: 3 },
+        A: { choice: 'sometimes' as const, years: 3 },
+        B: { choice: 'sometimes' as const, years: 4 },
+        C: { choice: 'sometimes' as const, years: 3 },
       },
     };
     
     return computePlan(inputs);
-  }, [date, d7]);
+  }, [date]);
 
   if (!plan) {
     return (
@@ -138,7 +135,7 @@ function ResultsContent() {
             <CardTitle>Notes & Assumptions</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-neutral-600">{plan.note}</p>
+            <p className="text-sm text-neutral-600 whitespace-pre-line">{plan.note}</p>
           </CardContent>
         </Card>
 

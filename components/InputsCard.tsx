@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Inputs, BlockChoice } from "@/types/rnor";
 
 interface InputsCardProps {
@@ -17,10 +16,10 @@ interface InputsCardProps {
 }
 
 const SLIDER_OPTIONS = [
-  { value: 'rarely', label: 'Rarely (0–60 days/year)', days: 30 },
-  { value: 'sometimes', label: 'Sometimes (61–120 days/year)', days: 90 },
-  { value: 'frequently', label: 'Often (121–180 days/year)', days: 150 },
-  { value: 'mostly', label: 'Mostly (181–240 days/year)', days: 240 },
+  { value: 'rarely', label: 'Rarely (0–60 days)', days: 60 },
+  { value: 'sometimes', label: 'Sometimes (61–120 days)', days: 120 },
+  { value: 'frequently', label: 'Often (121–180 days)', days: 180 },
+  { value: 'mostly', label: 'Mostly (181–240 days)', days: 240 },
 ];
 
 const BLOCKS = [
@@ -47,12 +46,10 @@ const BLOCKS = [
 interface BlockSliderProps {
   block: typeof BLOCKS[0];
   choice: BlockChoice;
-  hasSpike: boolean;
   onChoiceChange: (choice: BlockChoice) => void;
-  onSpikeChange: (hasSpike: boolean) => void;
 }
 
-function BlockSlider({ block, choice, hasSpike, onChoiceChange, onSpikeChange }: BlockSliderProps) {
+function BlockSlider({ block, choice, onChoiceChange }: BlockSliderProps) {
   const currentIndex = SLIDER_OPTIONS.findIndex(opt => opt.value === choice);
   
   return (
@@ -60,6 +57,9 @@ function BlockSlider({ block, choice, hasSpike, onChoiceChange, onSpikeChange }:
       <div>
         <h4 className="font-semibold text-sm mb-1">{block.title}</h4>
         <p className="text-sm text-muted-foreground mb-3">{block.description}</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Choose the option that best matches most years in this period.
+        </p>
       </div>
       
       {/* Slider */}
@@ -83,27 +83,11 @@ function BlockSlider({ block, choice, hasSpike, onChoiceChange, onSpikeChange }:
           ))}
         </div>
       </div>
-      
-      {/* 6+ Months Toggle */}
-      <div className="flex items-center space-x-2 pt-2 border-t">
-        <Switch
-          id={`spike-${block.key}`}
-          checked={hasSpike}
-          onCheckedChange={onSpikeChange}
-        />
-        <Label htmlFor={`spike-${block.key}`} className="text-sm">
-          In this block, was there any year you stayed more than 6 months in India?
-        </Label>
-      </div>
-      
-      <p className="text-xs text-muted-foreground">
-        We use this to estimate your India days per FY for RNOR eligibility.
-      </p>
     </div>
   );
 }
 
-export function InputsCard({ inputs, onInputsChange, onRecalculate, onResetBlocks }: InputsCardProps) {
+export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCardProps) {
   const updateInputs = (updates: Partial<Inputs>) => {
     onInputsChange({ ...inputs, ...updates });
   };
@@ -122,9 +106,9 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate, onResetBlock
     onInputsChange({
       ...inputs,
       blocks: {
-        A: { choice: 'sometimes', hasSpike: false, years: 3 },
-        B: { choice: 'sometimes', hasSpike: false, years: 4 },
-        C: { choice: 'sometimes', hasSpike: false, years: 3 },
+        A: { choice: 'sometimes', years: 3 },
+        B: { choice: 'sometimes', years: 4 },
+        C: { choice: 'sometimes', years: 3 },
       },
     });
   };
@@ -183,7 +167,7 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate, onResetBlock
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-lg font-semibold">Residency Inputs</CardTitle>
+                <CardTitle className="text-lg font-semibold">Improve accuracy</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Estimate your India stays across the last 10 years
                 </p>
@@ -200,11 +184,16 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate, onResetBlock
                 key={block.key}
                 block={block}
                 choice={inputs.blocks[block.key].choice}
-                hasSpike={inputs.blocks[block.key].hasSpike}
                 onChoiceChange={(choice) => updateBlock(block.key, { choice })}
-                onSpikeChange={(hasSpike) => updateBlock(block.key, { hasSpike })}
               />
             ))}
+            
+            {/* Conservatism Note */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">
+                We use the upper end of each range to stay conservative and avoid overstating tax-free years.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </CardContent>
