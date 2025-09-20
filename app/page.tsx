@@ -9,13 +9,20 @@ import { ExplainerCard } from "@/components/ExplainerCard";
 import { FAQCard } from "@/components/FAQCard";
 import { Card, CardContent } from "@/components/ui/card";
 
+// Default to today + 1 year
+const getDefaultLandingDate = () => {
+  const nextYear = new Date();
+  nextYear.setFullYear(nextYear.getFullYear() + 1);
+  return nextYear.toISOString().slice(0, 10);
+};
+
 const defaultInputs: Inputs = {
-  landingDate: new Date().toISOString().slice(0, 10),
+  landingDate: getDefaultLandingDate(),
   region: 'US',
   blocks: {
-    A: { choice: 'rarely', hasSpike: false, years: 3 },
-    B: { choice: 'rarely', hasSpike: false, years: 4 },
-    C: { choice: 'rarely', hasSpike: false, years: 3 },
+    A: { choice: 'sometimes', hasSpike: false, years: 3 },
+    B: { choice: 'sometimes', hasSpike: false, years: 4 },
+    C: { choice: 'sometimes', hasSpike: false, years: 3 },
   },
 };
 
@@ -43,9 +50,9 @@ export default function Page() {
     setInputs(prev => ({
       ...prev,
       blocks: {
-        A: { choice: 'rarely', hasSpike: false, years: 3 },
-        B: { choice: 'rarely', hasSpike: false, years: 4 },
-        C: { choice: 'rarely', hasSpike: false, years: 3 },
+        A: { choice: 'sometimes', hasSpike: false, years: 3 },
+        B: { choice: 'sometimes', hasSpike: false, years: 4 },
+        C: { choice: 'sometimes', hasSpike: false, years: 3 },
       },
     }));
   }, []);
@@ -53,7 +60,7 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-[#f6f0e8]">
       <div className="mx-auto max-w-5xl px-4 py-6 md:py-8 space-y-6 md:space-y-8">
-        {/* New Hero Copy */}
+        {/* Hero Copy */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl md:text-4xl font-serif tracking-tight">
             When are you moving back to India?

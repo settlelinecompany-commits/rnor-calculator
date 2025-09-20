@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Inputs, BlockChoice } from "@/types/rnor";
 
 interface InputsCardProps {
@@ -15,69 +16,105 @@ interface InputsCardProps {
   onResetBlocks: () => void;
 }
 
-// Convert blocks to estimated days for slider
-const estimateDaysFromBlocks = (blocks: Inputs['blocks']): number => {
-  let totalDays = 0;
-  
-  // Block A (last 3 FYs)
-  const aDays = blocks.A.choice === 'rarely' ? 30 : 
-                blocks.A.choice === 'sometimes' ? 90 :
-                blocks.A.choice === 'frequently' ? 150 : 240;
-  totalDays += aDays * blocks.A.years;
-  if (blocks.A.hasSpike) totalDays += 210;
-  
-  // Block B (previous 4 FYs)
-  const bDays = blocks.B.choice === 'rarely' ? 30 : 
-                blocks.B.choice === 'sometimes' ? 90 :
-                blocks.B.choice === 'frequently' ? 150 : 240;
-  totalDays += bDays * blocks.B.years;
-  if (blocks.B.hasSpike) totalDays += 210;
-  
-  // Block C (previous 3 FYs)
-  const cDays = blocks.C.choice === 'rarely' ? 30 : 
-                blocks.C.choice === 'sometimes' ? 90 :
-                blocks.C.choice === 'frequently' ? 150 : 240;
-  totalDays += cDays * blocks.C.years;
-  if (blocks.C.hasSpike) totalDays += 210;
-  
-  return Math.min(totalDays, 2000);
-};
-
-// Convert slider days back to blocks (simplified)
-const convertDaysToBlocks = (days: number): Inputs['blocks'] => {
-  const avgDaysPerYear = days / 10; // 10 years total
-  
-  let choice: BlockChoice = 'rarely';
-  if (avgDaysPerYear >= 240) choice = 'mostly';
-  else if (avgDaysPerYear >= 150) choice = 'frequently';
-  else if (avgDaysPerYear >= 90) choice = 'sometimes';
-  
-  return {
-    A: { choice, hasSpike: false, years: 3 },
-    B: { choice, hasSpike: false, years: 4 },
-    C: { choice, hasSpike: false, years: 3 },
-  };
-};
-
-const DAY_CHIPS = [
-  { label: "< 365 days", value: 300 },
-  { label: "365–730 days", value: 550 },
-  { label: "730–1200 days", value: 950 },
-  { label: "1200+ days", value: 1500 },
+const SLIDER_OPTIONS = [
+  { value: 'rarely', label: 'Rarely (0–60 days/year)', days: 30 },
+  { value: 'sometimes', label: 'Sometimes (61–120 days/year)', days: 90 },
+  { value: 'frequently', label: 'Often (121–180 days/year)', days: 150 },
+  { value: 'mostly', label: 'Mostly (181–240 days/year)', days: 240 },
 ];
 
-export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCardProps) {
+const BLOCKS = [
+  {
+    key: 'A' as const,
+    title: 'Last 3 FYs',
+    description: 'In the last 3 years before moving back, how many days did you usually spend in India each year?',
+    years: 3,
+  },
+  {
+    key: 'B' as const,
+    title: 'The 4 FYs before that',
+    description: 'In the 4 years before that, how many days were you usually in India each year?',
+    years: 4,
+  },
+  {
+    key: 'C' as const,
+    title: 'The 3 FYs before that',
+    description: 'And in the 3 years before that, how many days were you usually in India each year?',
+    years: 3,
+  },
+];
+
+interface BlockSliderProps {
+  block: typeof BLOCKS[0];
+  choice: BlockChoice;
+  hasSpike: boolean;
+  onChoiceChange: (choice: BlockChoice) => void;
+  onSpikeChange: (hasSpike: boolean) => void;
+}
+
+function BlockSlider({ block, choice, hasSpike, onChoiceChange, onSpikeChange }: BlockSliderProps) {
+  const currentIndex = SLIDER_OPTIONS.findIndex(opt => opt.value === choice);
+  
+  return (
+    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+      <div>
+        <h4 className="font-semibold text-sm mb-1">{block.title}</h4>
+        <p className="text-sm text-muted-foreground mb-3">{block.description}</p>
+      </div>
+      
+      {/* Slider */}
+      <div className="space-y-3">
+        <Slider
+          value={[currentIndex]}
+          onValueChange={(value) => onChoiceChange(SLIDER_OPTIONS[value[0]].value as BlockChoice)}
+          max={SLIDER_OPTIONS.length - 1}
+          step={1}
+          className="w-full"
+        />
+        
+        {/* Slider Labels */}
+        <div className="flex justify-between text-xs text-muted-foreground">
+          {SLIDER_OPTIONS.map((option, index) => (
+            <div key={option.value} className="text-center">
+              <div className={`font-medium ${index === currentIndex ? 'text-foreground' : ''}`}>
+                {option.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* 6+ Months Toggle */}
+      <div className="flex items-center space-x-2 pt-2 border-t">
+        <Switch
+          id={`spike-${block.key}`}
+          checked={hasSpike}
+          onCheckedChange={onSpikeChange}
+        />
+        <Label htmlFor={`spike-${block.key}`} className="text-sm">
+          In this block, was there any year you stayed more than 6 months in India?
+        </Label>
+      </div>
+      
+      <p className="text-xs text-muted-foreground">
+        We use this to estimate your India days per FY for RNOR eligibility.
+      </p>
+    </div>
+  );
+}
+
+export function InputsCard({ inputs, onInputsChange, onRecalculate, onResetBlocks }: InputsCardProps) {
   const updateInputs = (updates: Partial<Inputs>) => {
     onInputsChange({ ...inputs, ...updates });
   };
 
-  const estimatedDays = estimateDaysFromBlocks(inputs.blocks);
-
-  const handleDaysChange = (days: number) => {
-    const newBlocks = convertDaysToBlocks(days);
+  const updateBlock = (blockKey: keyof Inputs['blocks'], updates: Partial<Inputs['blocks'][keyof Inputs['blocks']]>) => {
     onInputsChange({
       ...inputs,
-      blocks: newBlocks,
+      blocks: {
+        ...inputs.blocks,
+        [blockKey]: { ...inputs.blocks[blockKey], ...updates },
+      },
     });
   };
 
@@ -85,9 +122,9 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
     onInputsChange({
       ...inputs,
       blocks: {
-        A: { choice: 'rarely', hasSpike: false, years: 3 },
-        B: { choice: 'rarely', hasSpike: false, years: 4 },
-        C: { choice: 'rarely', hasSpike: false, years: 3 },
+        A: { choice: 'sometimes', hasSpike: false, years: 3 },
+        B: { choice: 'sometimes', hasSpike: false, years: 4 },
+        C: { choice: 'sometimes', hasSpike: false, years: 3 },
       },
     });
   };
@@ -112,7 +149,7 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
           </div>
           
           <div className="space-y-3">
-            <Label htmlFor="region" className="text-base font-medium">Where are you moving from?</Label>
+            <Label htmlFor="region" className="text-base font-medium">Which country are you moving from?</Label>
             <Select
               value={inputs.region}
               onValueChange={(value: Inputs['region']) => updateInputs({ region: value })}
@@ -136,19 +173,19 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
 
         {/* Recalculate Button - Right Aligned */}
         <div className="flex justify-end">
-          <Button onClick={onRecalculate} size="sm">
+          <Button onClick={onRecalculate} className="bg-green-600 hover:bg-green-700">
             Recalculate
           </Button>
         </div>
 
-        {/* Simplified Accuracy Section */}
+        {/* Residency Inputs - 3-4-3 Sliders */}
         <Card className="bg-muted/20">
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-lg font-semibold">Improve accuracy (optional)</CardTitle>
+                <CardTitle className="text-lg font-semibold">Residency Inputs</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Roughly how many days did you spend in India over the last 10 years?
+                  Estimate your India stays across the last 10 years
                 </p>
               </div>
               <Button variant="ghost" size="sm" onClick={resetToDefault} className="text-sm text-muted-foreground">
@@ -156,41 +193,18 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-0 space-y-4">
-            {/* Slider */}
-            <div className="space-y-3">
-              <Slider
-                value={[estimatedDays]}
-                onValueChange={(value) => handleDaysChange(value[0])}
-                max={2000}
-                step={50}
-                className="w-full"
+          <CardContent className="pt-0 space-y-6">
+            {/* Three Stacked Sliders */}
+            {BLOCKS.map((block) => (
+              <BlockSlider
+                key={block.key}
+                block={block}
+                choice={inputs.blocks[block.key].choice}
+                hasSpike={inputs.blocks[block.key].hasSpike}
+                onChoiceChange={(choice) => updateBlock(block.key, { choice })}
+                onSpikeChange={(hasSpike) => updateBlock(block.key, { hasSpike })}
               />
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>0 days</span>
-                <span className="font-medium">{estimatedDays} days</span>
-                <span>2000+ days</span>
-              </div>
-            </div>
-
-            {/* Quick Chips */}
-            <div className="flex flex-wrap gap-2">
-              {DAY_CHIPS.map((chip) => (
-                <Button
-                  key={chip.value}
-                  variant={Math.abs(estimatedDays - chip.value) < 100 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleDaysChange(chip.value)}
-                  className="text-sm"
-                >
-                  {chip.label}
-                </Button>
-              ))}
-            </div>
-            
-            <p className="text-sm text-muted-foreground">
-              This affects how long your tax-free window lasts.
-            </p>
+            ))}
           </CardContent>
         </Card>
       </CardContent>
