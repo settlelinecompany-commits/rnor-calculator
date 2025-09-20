@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Inputs, BlockChoice } from "@/types/rnor";
 
 interface InputsCardProps {
@@ -14,30 +15,81 @@ interface InputsCardProps {
   onRecalculate: () => void;
 }
 
-const BLOCK_CHOICES: { value: BlockChoice; label: string; description: string }[] = [
-  { value: 'rarely', label: 'Rarely (0–1 mo)', description: '30 days' },
-  { value: 'sometimes', label: 'Sometimes (2–3 mo)', description: '90 days' },
-  { value: 'frequently', label: 'Frequently (4–6 mo)', description: '150 days' },
-  { value: 'mostly', label: 'Mostly (7+ mo)', description: '240 days' },
+const BLOCK_CHOICES: { value: BlockChoice; label: string; days: string }[] = [
+  { value: 'rarely', label: 'Rarely', days: '30d' },
+  { value: 'sometimes', label: 'Sometimes', days: '90d' },
+  { value: 'frequently', label: 'Frequently', days: '150d' },
+  { value: 'mostly', label: 'Mostly', days: '240d' },
 ];
 
 const BLOCKS = [
   {
     key: 'A' as const,
-    title: 'Last 3 FYs before landing',
-    description: 'Most recent years before your return.',
+    title: 'Last 3 FYs',
+    description: 'Most recent before return',
   },
   {
     key: 'B' as const,
     title: 'Previous 4 FYs',
-    description: 'Middle period of your time abroad.',
+    description: 'Middle period abroad',
   },
   {
     key: 'C' as const,
     title: 'Previous 3 FYs',
-    description: 'Earlier years of your time abroad.',
+    description: 'Earlier years abroad',
   },
 ];
+
+interface BlockCardletProps {
+  block: typeof BLOCKS[0];
+  choice: BlockChoice;
+  hasSpike: boolean;
+  onChoiceChange: (choice: BlockChoice) => void;
+  onSpikeChange: (hasSpike: boolean) => void;
+}
+
+function BlockCardlet({ block, choice, hasSpike, onChoiceChange, onSpikeChange }: BlockCardletProps) {
+  return (
+    <div className="bg-muted/30 border rounded-lg p-3 md:p-4 space-y-3">
+      <div>
+        <h4 className="text-sm font-bold">{block.title}</h4>
+        <p className="text-xs text-muted-foreground">{block.description}</p>
+      </div>
+      
+      <ToggleGroup
+        type="single"
+        value={choice}
+        onValueChange={(value) => value && onChoiceChange(value as BlockChoice)}
+        className="grid grid-cols-2 gap-1"
+      >
+        {BLOCK_CHOICES.map((option) => (
+          <ToggleGroupItem
+            key={option.value}
+            value={option.value}
+            variant="outline"
+            size="sm"
+            className="flex flex-col items-center p-2 h-auto"
+          >
+            <span className="text-xs font-medium">{option.label}</span>
+            <span className="text-xs text-muted-foreground">{option.days}</span>
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      
+      <div className="flex items-center space-x-2 pt-2 border-t">
+        <Switch
+          id={`spike-${block.key}`}
+          checked={hasSpike}
+          onCheckedChange={onSpikeChange}
+          className="scale-75"
+        />
+        <Label htmlFor={`spike-${block.key}`} className="text-xs">
+          Any 6+ month year?
+        </Label>
+      </div>
+    </div>
+  );
+}
 
 export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCardProps) {
   const updateInputs = (updates: Partial<Inputs>) => {
@@ -67,9 +119,6 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
 
   return (
     <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Your RNOR Settings</CardTitle>
-      </CardHeader>
       <CardContent className="space-y-4">
         {/* Basic Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -109,64 +158,44 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
           </div>
         </div>
 
-        {/* Recalculate Button */}
-        <div className="flex justify-center">
+        {/* Recalculate Button - Right Aligned */}
+        <div className="flex justify-end">
           <Button onClick={onRecalculate}>
             Recalculate
           </Button>
         </div>
 
-        {/* Accuracy Blocks - Always Visible */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Improve accuracy</h3>
-            <Button variant="ghost" size="sm" onClick={resetBlocks} className="text-sm">
-              Reset all blocks to default
-            </Button>
-          </div>
-          
-          {BLOCKS.map((block) => (
-            <div key={block.key} className="space-y-3 p-4 border rounded-lg">
+        {/* Improve Accuracy Section */}
+        <Card className="bg-muted/20">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
               <div>
-                <h4 className="font-medium">{block.title}</h4>
-                <p className="text-sm text-muted-foreground">{block.description}</p>
+                <CardTitle className="text-lg font-semibold">Improve accuracy (optional)</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Answer a few quick questions about past India stays for better accuracy.
+                </p>
               </div>
-              
-              <div className="space-y-2">
-                <Label>How many months did you usually spend in India each year?</Label>
-                <Select
-                  value={inputs.blocks[block.key].choice}
-                  onValueChange={(value: BlockChoice) => updateBlock(block.key, { choice: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BLOCK_CHOICES.map((choice) => (
-                      <SelectItem key={choice.value} value={choice.value}>
-                        <div>
-                          <div>{choice.label}</div>
-                          <div className="text-xs text-muted-foreground">{choice.description}</div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id={`spike-${block.key}`}
-                  checked={inputs.blocks[block.key].hasSpike}
-                  onCheckedChange={(checked) => updateBlock(block.key, { hasSpike: checked })}
-                />
-                <Label htmlFor={`spike-${block.key}`} className="text-sm">
-                  Any year in this block you stayed 6+ months?
-                </Label>
-              </div>
+              <Button variant="ghost" size="sm" onClick={resetBlocks} className="text-xs text-muted-foreground">
+                Reset
+              </Button>
             </div>
-          ))}
-        </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {/* 3-Column Grid of Blocks */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {BLOCKS.map((block) => (
+                <BlockCardlet
+                  key={block.key}
+                  block={block}
+                  choice={inputs.blocks[block.key].choice}
+                  hasSpike={inputs.blocks[block.key].hasSpike}
+                  onChoiceChange={(choice) => updateBlock(block.key, { choice })}
+                  onSpikeChange={(hasSpike) => updateBlock(block.key, { hasSpike })}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </CardContent>
     </Card>
   );
