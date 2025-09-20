@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Inputs, BlockChoice } from "@/types/rnor";
 import { generateBlockYearRanges } from "@/lib/utils";
 
@@ -17,33 +18,38 @@ interface InputsCardProps {
 }
 
 const SLIDER_OPTIONS = [
-  { value: 'rarely', label: 'Rarely (0–60 days)', days: 60 },
-  { value: 'sometimes', label: 'Sometimes (61–120 days)', days: 120 },
-  { value: 'frequently', label: 'Often (121–180 days)', days: 180 },
-  { value: 'mostly', label: 'Mostly (181–240 days)', days: 240 },
+  { value: 'rarely', label: 'Rarely (0–60 days/year)', days: 60 },
+  { value: 'sometimes', label: 'Sometimes (61–120 days/year)', days: 120 },
+  { value: 'frequently', label: 'Often (121–180 days/year)', days: 180 },
+  { value: 'mostly', label: 'Mostly (181–240 days/year)', days: 240 },
 ];
 
 // Generate dynamic blocks with year ranges based on landing date
 function getBlocksWithYearRanges(landingDate: string) {
   const yearRanges = generateBlockYearRanges(landingDate);
   
+  // Format block B with arrow for 4-item range
+  const blockBTitle = yearRanges.blockB.length > 0 
+    ? `The 4 years before that (${yearRanges.blockB[0]} → ${yearRanges.blockB[yearRanges.blockB.length - 1]})`
+    : 'The 4 years before that';
+  
   return [
     {
       key: 'A' as const,
-      title: `Last 3 FYs (${yearRanges.blockA.join(', ')})`,
-      description: 'In the last 3 years before moving back, how many days did you usually spend in India each year?',
+      title: `Last 3 years before landing (${yearRanges.blockA.join(', ')})`,
+      description: 'In this period, how many days were you usually in India each year?',
       years: 3,
     },
     {
       key: 'B' as const,
-      title: `The 4 FYs before that (${yearRanges.blockB.join(', ')})`,
-      description: 'In the 4 years before that, how many days were you usually in India each year?',
+      title: blockBTitle,
+      description: 'In this period, how many days were you usually in India each year?',
       years: 4,
     },
     {
       key: 'C' as const,
-      title: `The 3 FYs before that (${yearRanges.blockC.join(', ')})`,
-      description: 'And in the 3 years before that, how many days were you usually in India each year?',
+      title: `Earlier 3 years (${yearRanges.blockC.join(', ')})`,
+      description: 'In this period, how many days were you usually in India each year?',
       years: 3,
     },
   ];
@@ -176,12 +182,21 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-lg font-semibold">Residency Inputs</CardTitle>
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg font-semibold">Residency Inputs</CardTitle>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground cursor-help">ⓘ</span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>A year here means Apr 1 to Mar 31.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Estimate your India stays across the last 10 years
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Choose the option that best matches most years in each period.
+                  Estimate your India stays across the last 10 years. Choose the option that best matches most years in each period.
                 </p>
               </div>
               <Button variant="ghost" size="sm" onClick={resetToDefault} className="text-sm text-muted-foreground">

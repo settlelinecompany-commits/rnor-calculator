@@ -1,301 +1,298 @@
-import { Inputs, PlanResult, FYRow } from "@/types/rnor";
+import { Inputs, PlanResult, FYRow, BlockChoice } from '@/types/rnor';
+import { generateDaysByYear } from '@/lib/utils';
 
-// Convert slider choices to per-FY day estimates using upper bounds
-function convertBlocksToFYDays(inputs: Inputs): { [fy: string]: number } {
-  const landingDate = new Date(inputs.landingDate);
-  const landingYear = landingDate.getFullYear();
-  
-  // Determine FY based on landing date (April 1 start)
-  const landingMonth = landingDate.getMonth() + 1; // 1-12
-  const landingFY = landingMonth >= 4 ? `${landingYear}-${(landingYear + 1).toString().slice(-2)}` : `${landingYear - 1}-${landingYear.toString().slice(-2)}`;
-  
-  // Generate 10 FYs before landing
-  const fyDays: { [fy: string]: number } = {};
-  const landingFYNum = parseInt(landingFY.split('-')[0]);
-  
-  // Create FY list (10 years before landing)
-  const fyList: string[] = [];
-  for (let i = 9; i >= 0; i--) {
-    const fyYear = landingFYNum - i;
-    fyList.push(`${fyYear}-${(fyYear + 1).toString().slice(-2)}`);
-  }
-  
-  // Map slider choices to upper-bound day estimates
-  const choiceToDays = {
-    'rarely': 60,
-    'sometimes': 120,
-    'frequently': 180,
-    'mostly': 240
-  };
-  
-  // Apply estimates to each block
-  let fyIndex = 0;
-  
-  // Block C (first 3 FYs)
-  for (let i = 0; i < inputs.blocks.C.years; i++) {
-    fyDays[fyList[fyIndex]] = choiceToDays[inputs.blocks.C.choice];
-    fyIndex++;
-  }
-  
-  // Block B (next 4 FYs)
-  for (let i = 0; i < inputs.blocks.B.years; i++) {
-    fyDays[fyList[fyIndex]] = choiceToDays[inputs.blocks.B.choice];
-    fyIndex++;
-  }
-  
-  // Block A (last 3 FYs)
-  for (let i = 0; i < inputs.blocks.A.years; i++) {
-    fyDays[fyList[fyIndex]] = choiceToDays[inputs.blocks.A.choice];
-    fyIndex++;
-  }
-  
-  return fyDays;
+// Map choices to upper bounds (conservative approach)
+const CHOICE_TO_DAYS: Record<BlockChoice, number> = {
+  rarely: 60,
+  sometimes: 120,
+  frequently: 180,
+  mostly: 240,
+};
+
+// Parse date without timezone drift (treat as UTC date)
+function parseUTCDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
-// Generate detailed notes with slider choices
-function generateDetailedNotes(inputs: Inputs, fyDays: { [fy: string]: number }): string {
-  const choiceLabels = {
-    'rarely': 'Rarely (0–60 days)',
-    'sometimes': 'Sometimes (61–120 days)',
-    'frequently': 'Often (121–180 days)',
-    'mostly': 'Mostly (181–240 days)'
-  };
+// Get financial year for a date (India FY: Apr 1–Mar 31)
+function getFinancialYear(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1; // 1-12
   
-  let notes = "Slider choices per block:\n";
-  notes += `• Last 3 FYs: ${choiceLabels[inputs.blocks.A.choice]}\n`;
-  notes += `• Previous 4 FYs: ${choiceLabels[inputs.blocks.B.choice]}\n`;
-  notes += `• Earlier 3 FYs: ${choiceLabels[inputs.blocks.C.choice]}\n\n`;
-  
-  // Calculate last-7 years total and resident years in last-10
-  const fyList = Object.keys(fyDays).sort();
-  const last7FYs = fyList.slice(-7);
-  const last7Sum = last7FYs.reduce((sum, fy) => sum + fyDays[fy], 0);
-  const residentYearsInLast10 = fyList.filter(fy => fyDays[fy] >= 182).length;
-  
-  notes += `Last-7 years total: ${last7Sum} days\n`;
-  notes += `Resident years in last-10: ${residentYearsInLast10}\n\n`;
-  
-  notes += "We use upper bounds of each range to stay conservative. RNOR eligibility depends on 182-day test and 60/365-day test.";
-  
-  return notes;
+  if (month >= 4) {
+    // Apr-Dec: current FY
+    return `${year}-${(year + 1).toString().slice(-2)}`;
+  } else {
+    // Jan-Mar: previous FY
+    return `${year - 1}-${year.toString().slice(-2)}`;
+  }
 }
 
-export function computePlan(inputs: Inputs): PlanResult {
-  const landingDate = new Date(inputs.landingDate);
-  const landingYear = landingDate.getFullYear();
-  
-  // Determine FY based on landing date (April 1 start)
-  const landingMonth = landingDate.getMonth() + 1; // 1-12
-  const arrivalFY = landingMonth >= 4 ? `${landingYear}-${(landingYear + 1).toString().slice(-2)}` : `${landingYear - 1}-${landingYear.toString().slice(-2)}`;
-  
-  // Convert blocks to per-FY day estimates
-  const fyDays = convertBlocksToFYDays(inputs);
-  
-  // Generate detailed notes
-  const note = generateDetailedNotes(inputs, fyDays);
-  
-  // Build timeline starting from 10 FYs before landing
+// Get next financial year
+function getNextFinancialYear(fy: string): string {
+  const [startYear, endYear] = fy.split('-');
+  const nextStartYear = parseInt(startYear) + 1;
+  const nextEndYear = parseInt(endYear) + 1;
+  return `${nextStartYear}-${nextEndYear.toString().slice(-2)}`;
+}
+
+// Get previous financial year
+function getPreviousFinancialYear(fy: string): string {
+  const [startYear, endYear] = fy.split('-');
+  const prevStartYear = parseInt(startYear) - 1;
+  const prevEndYear = parseInt(endYear) - 1;
+  return `${prevStartYear}-${prevEndYear.toString().slice(-2)}`;
+}
+
+// Calculate days from landing date to end of financial year (inclusive)
+function getDaysFromLandingToFYEnd(landingDate: Date): number {
+  const landingFY = getFinancialYear(landingDate);
+  const fyEndDate = new Date(Date.UTC(parseInt(landingFY.split('-')[1]), 2, 31)); // March 31
+  const diffTime = fyEndDate.getTime() - landingDate.getTime();
+  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1); // +1 for inclusive
+}
+
+// Build timeline of 10 prior years + landing year + forward until first ROR
+function buildTimeline(inputs: Inputs): FYRow[] {
+  const landingDate = parseUTCDate(inputs.landingDate);
+  const arrivalFY = getFinancialYear(landingDate);
   const timeline: FYRow[] = [];
-  const fyList = Object.keys(fyDays).sort();
   
-  // Add 10 prior FYs
-  fyList.forEach((fy, index) => {
-    const days = fyDays[fy];
-    const residentTest = days >= 182 ? 'Resident' : 'NR';
-    
-    // Calculate last-7 sum (including this FY)
-    const last7Start = Math.max(0, index - 6);
-    const last7FYs = fyList.slice(last7Start, index + 1);
-    const last7Sum = last7FYs.reduce((sum, fy) => sum + fyDays[fy], 0);
-    
-    // Calculate resident years in last-10 (including this FY)
-    const last10Start = Math.max(0, index - 9);
-    const last10FYs = fyList.slice(last10Start, index + 1);
-    const residentYearsInLast10 = last10FYs.filter(fy => fyDays[fy] >= 182).length;
-    
-    // Determine final status
-    let finalStatus: 'NR' | 'Resident' | 'RNOR' | 'ROR' = 'NR';
-    
-    if (residentTest === 'Resident') {
-      // Check RNOR vs ROR
-      if (residentYearsInLast10 >= 2 && last7Sum >= 730) {
-        finalStatus = 'ROR';
-      } else {
-        finalStatus = 'RNOR';
-      }
-    }
+  // Generate days by year using the new system
+  const daysByYear = generateDaysByYear(inputs.landingDate, {
+    A: inputs.blocks.A.choice,
+    B: inputs.blocks.B.choice,
+    C: inputs.blocks.C.choice,
+  });
+  
+  // Convert year spans to FY format for compatibility with existing system
+  const fyDaysByYear: { [fy: string]: number } = {};
+  Object.entries(daysByYear).forEach(([yearSpan, days]) => {
+    // Convert "Apr 2024 – Mar 2025" to "2024-25"
+    const startYear = parseInt(yearSpan.split(' ')[1]);
+    const fy = `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+    fyDaysByYear[fy] = days;
+  });
+  
+  // Build 10 prior FYs using the new data
+  const priorFYs: string[] = [];
+  let currentFY = arrivalFY;
+  
+  for (let i = 0; i < 10; i++) {
+    currentFY = getPreviousFinancialYear(currentFY);
+    priorFYs.unshift(currentFY);
+  }
+  
+  // Add prior FYs with their day estimates
+  priorFYs.forEach(fy => {
+    const days = fyDaysByYear[fy] || 0;
     
     timeline.push({
       fyLabel: fy,
       daysInIndia: days,
-      residentTest,
-      last7Sum,
-      residentYearsInLast10,
-      finalStatus
+      residentTest: 'NR', // Will be calculated later
+      last7Sum: 0, // Will be calculated later
+      residentYearsInLast10: 0, // Will be calculated later
+      finalStatus: 'NR', // Will be calculated later
     });
   });
   
-  // Add landing FY (estimate based on landing date)
-  const landingFYDays = landingMonth >= 4 ? 
-    Math.floor((365 - (landingDate.getTime() - new Date(landingYear, 3, 1).getTime()) / (1000 * 60 * 60 * 24))) :
-    Math.floor((new Date(landingYear, 3, 1).getTime() - landingDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  const landingResidentTest = landingFYDays >= 182 ? 'Resident' : 'NR';
-  const landingLast7Sum = timeline.slice(-7).reduce((sum, row) => sum + row.daysInIndia, 0) + landingFYDays;
-  const landingResidentYearsInLast10 = timeline.filter(row => row.residentTest === 'Resident').length + (landingResidentTest === 'Resident' ? 1 : 0);
-  
-  let landingFinalStatus: 'NR' | 'Resident' | 'RNOR' | 'ROR' = 'NR';
-  if (landingResidentTest === 'Resident') {
-    if (landingResidentYearsInLast10 >= 2 && landingLast7Sum >= 730) {
-      landingFinalStatus = 'ROR';
-    } else {
-      landingFinalStatus = 'RNOR';
-    }
-  }
-  
+  // Add landing FY (computed days from landing to Mar 31)
+  const landingDays = getDaysFromLandingToFYEnd(landingDate);
   timeline.push({
     fyLabel: arrivalFY,
-    daysInIndia: landingFYDays,
-    residentTest: landingResidentTest,
-    last7Sum: landingLast7Sum,
-    residentYearsInLast10: landingResidentYearsInLast10,
-    finalStatus: landingFinalStatus
+    daysInIndia: landingDays,
+    residentTest: 'NR', // Will be calculated later
+    last7Sum: 0, // Will be calculated later
+    residentYearsInLast10: 0, // Will be calculated later
+    finalStatus: 'NR', // Will be calculated later
   });
   
-  // Add next FY (assume resident ~300 days)
-  const nextFY = `${landingYear + 1}-${(landingYear + 2).toString().slice(-2)}`;
-  const nextFYDays = 300;
-  const nextResidentTest = 'Resident';
-  const nextLast7Sum = timeline.slice(-6).reduce((sum, row) => sum + row.daysInIndia, 0) + nextFYDays;
-  const nextResidentYearsInLast10 = timeline.filter(row => row.residentTest === 'Resident').length + 1;
-  
-  let nextFinalStatus: 'NR' | 'Resident' | 'RNOR' | 'ROR' = 'RNOR';
-  if (nextResidentYearsInLast10 >= 2 && nextLast7Sum >= 730) {
-    nextFinalStatus = 'ROR';
-  }
-  
+  // Add next FY (assume resident ~full-year)
+  const nextFY = getNextFinancialYear(arrivalFY);
   timeline.push({
     fyLabel: nextFY,
-    daysInIndia: nextFYDays,
-    residentTest: nextResidentTest,
-    last7Sum: nextLast7Sum,
-    residentYearsInLast10: nextResidentYearsInLast10,
-    finalStatus: nextFinalStatus
+    daysInIndia: 300, // Assume resident
+    residentTest: 'NR', // Will be calculated later
+    last7Sum: 0, // Will be calculated later
+    residentYearsInLast10: 0, // Will be calculated later
+    finalStatus: 'NR', // Will be calculated later
   });
   
-  // Continue until first ROR FY
-  let currentFY = landingYear + 2;
-  const currentDays = 300;
-  let currentLast7Sum = nextLast7Sum;
-  let currentResidentYearsInLast10 = nextResidentYearsInLast10;
-  
-  while (currentResidentYearsInLast10 < 2 || currentLast7Sum < 730) {
-    currentFY++;
-    const fyLabel = `${currentFY}-${(currentFY + 1).toString().slice(-2)}`;
+  return timeline;
+}
+
+// Calculate resident test for each FY
+function calculateResidentTests(timeline: FYRow[]): void {
+  timeline.forEach((row, index) => {
+    // Resident if days >= 182, OR (days >= 60 AND sum of preceding 4 FYs >= 365)
+    const days = row.daysInIndia;
+    let isResident = days >= 182;
     
-    // Update running totals
-    currentLast7Sum = currentLast7Sum - timeline[timeline.length - 7]?.daysInIndia + currentDays;
-    currentResidentYearsInLast10 = timeline.slice(-9).filter(row => row.residentTest === 'Resident').length + 1;
-    
-    let finalStatus: 'NR' | 'Resident' | 'RNOR' | 'ROR' = 'RNOR';
-    if (currentResidentYearsInLast10 >= 2 && currentLast7Sum >= 730) {
-      finalStatus = 'ROR';
+    if (!isResident && days >= 60) {
+      // Check preceding 4 FYs
+      const preceding4Sum = timeline
+        .slice(Math.max(0, index - 4), index)
+        .reduce((sum, r) => sum + r.daysInIndia, 0);
+      
+      isResident = preceding4Sum >= 365;
     }
     
-    timeline.push({
-      fyLabel,
-      daysInIndia: currentDays,
-      residentTest: 'Resident',
-      last7Sum: currentLast7Sum,
-      residentYearsInLast10: currentResidentYearsInLast10,
-      finalStatus
-    });
+    row.residentTest = isResident ? 'Resident' : 'NR';
+  });
+}
+
+// Calculate last 7 sum and resident years in last 10
+function calculateSums(timeline: FYRow[]): void {
+  timeline.forEach((row, index) => {
+    // Last 7 sum (including current FY)
+    const last7Sum = timeline
+      .slice(Math.max(0, index - 6), index + 1)
+      .reduce((sum, r) => sum + r.daysInIndia, 0);
+    row.last7Sum = last7Sum;
     
-    if (finalStatus === 'ROR') break;
-  }
+    // Resident years in last 10 (including current FY)
+    const last10ResidentYears = timeline
+      .slice(Math.max(0, index - 9), index + 1)
+      .filter(r => r.residentTest === 'Resident').length;
+    row.residentYearsInLast10 = last10ResidentYears;
+  });
+}
+
+// Calculate final status (RNOR vs ROR) and continue until first ROR
+function calculateFinalStatus(timeline: FYRow[]): void {
+  let foundFirstROR = false;
   
-  // Extract RNOR and ROR years
-  const rnorYears = timeline.filter(row => row.finalStatus === 'RNOR').map(row => row.fyLabel);
-  const rorYears = timeline.filter(row => row.finalStatus === 'ROR').map(row => row.fyLabel);
-  
-  // Find RNOR window (India RNOR/NR AND US Non-Resident overlap)
-  let window: { startFY: string; endFY: string } | null = null;
-  
-  // Assume US resident in landing calendar year, US non-resident from Jan 1 next CY
-  const landingCY = landingDate.getFullYear();
-  const usNonResidentStart = landingCY + 1;
-  
-  // Find earliest intersection where India is NR/RNOR AND US is Non-Resident
-  for (const row of timeline) {
-    if ((row.finalStatus === 'NR' || row.finalStatus === 'RNOR')) {
-      const fyYear = parseInt(row.fyLabel.split('-')[0]);
-      if (fyYear >= usNonResidentStart) {
-        if (!window) {
-          window = { startFY: row.fyLabel, endFY: row.fyLabel };
-        } else {
-          window.endFY = row.fyLabel;
-        }
+  timeline.forEach((row, index) => {
+    if (foundFirstROR) {
+      // Stop after first ROR
+      return;
+    }
+    
+    if (row.residentTest === 'NR') {
+      row.finalStatus = 'NR';
+    } else {
+      // ROR only if BOTH:
+      // 1. Resident in >=2 of last 10 FYs, AND
+      // 2. Sum of last 7 FYs days >= 730
+      const isROR = row.residentYearsInLast10 >= 2 && row.last7Sum >= 730;
+      row.finalStatus = isROR ? 'ROR' : 'RNOR';
+      
+      if (isROR) {
+        foundFirstROR = true;
       }
     }
-  }
+  });
+}
+
+// Find RNOR window (US-India overlay)
+function findRNORWindow(timeline: FYRow[], landingDate: Date): { startFY: string; endFY: string } | null {
+  const landingYear = landingDate.getUTCFullYear();
+  const rnorFYs = timeline.filter(row => row.finalStatus === 'RNOR');
   
-  // Generate alerts with human phrasing
+  if (rnorFYs.length === 0) return null;
+  
+  // US resident in landing calendar year, US non-resident from Jan 1 next CY
+  const usNonResidentStartYear = landingYear + 1;
+  
+  // Find intersection where India ∈ {NR, RNOR} AND US = Non-Resident
+  const validFYs = rnorFYs.filter(fy => {
+    const fyStartYear = parseInt(fy.fyLabel.split('-')[0]);
+    return fyStartYear >= usNonResidentStartYear;
+  });
+  
+  if (validFYs.length === 0) return null;
+  
+  return {
+    startFY: validFYs[0].fyLabel,
+    endFY: validFYs[validFYs.length - 1].fyLabel,
+  };
+}
+
+// Generate alerts
+function generateAlerts(timeline: FYRow[], landingDate: Date): PlanResult['alerts'] {
   const alerts: PlanResult['alerts'] = [];
+  const arrivalFY = getFinancialYear(landingDate);
+  const landingRow = timeline.find(row => row.fyLabel === arrivalFY);
   
-  // Near 730 days warning
-  const last7Sum = timeline.slice(-7).reduce((sum, row) => sum + row.daysInIndia, 0);
-  if (last7Sum >= 700 && last7Sum < 730) {
+  if (!landingRow) return alerts;
+  
+  // Last-7 sum >= 650 and < 730 in landing FY
+  if (landingRow.last7Sum >= 650 && landingRow.last7Sum < 730) {
     alerts.push({
       id: 'near-730',
       level: 'warn',
-      text: `You're close to the 730-day threshold (${last7Sum} days). Small changes could affect your RNOR status.`,
-      cta: 'Verify my residency history'
+      text: 'You&apos;re approaching the 730-day threshold for ROR status.',
+      cta: 'Verify my residency history',
     });
   }
   
-  // 2-of-10 risk
-  const residentYearsInLast10 = timeline.filter(row => row.residentTest === 'Resident').length;
-  if (residentYearsInLast10 >= 1 && residentYearsInLast10 < 2) {
+  // Resident-years in last-10 >= 2 in landing FY
+  if (landingRow.residentYearsInLast10 >= 2) {
     alerts.push({
-      id: '2-of-10-risk',
+      id: 'risk-2-of-10',
       level: 'warn',
-      text: `You've likely spent many days in India — your tax-free years may shrink.`,
-      cta: 'Run a residency audit'
-    });
-  }
-  
-  // Extension tip
-  if (rnorYears.length > 0) {
-    alerts.push({
-      id: 'extension-tip',
-      level: 'info',
-      text: `Keep FY ${arrivalFY.split('-')[1]} visits short (≤59 days) to extend your window.`,
-      cta: 'Get a travel plan'
+      text: 'You have 2+ resident years in the last 10, increasing ROR risk.',
+      cta: 'Run a residency audit',
     });
   }
   
   // No clean US overlap
-  if (!window && rnorYears.length > 0) {
+  const window = findRNORWindow(timeline, landingDate);
+  if (!window) {
     alerts.push({
-      id: 'no-us-overlap',
-      level: 'warn',
-      text: 'No clean US overlap window found. Consider adjusting your return date.',
-      cta: 'Get a date strategy'
+      id: 'no-overlap',
+      level: 'info',
+      text: 'No clear US-India overlap window found. Consider timing your return.',
+      cta: 'Get a date strategy',
     });
   }
   
+  // RNOR extension feasible
+  if (landingRow.finalStatus === 'NR' || landingRow.finalStatus === 'RNOR') {
+    alerts.push({
+      id: 'extension-feasible',
+      level: 'info',
+      text: `Keep FY ${landingRow.fyLabel} ≤59 days to extend RNOR.`,
+      cta: 'Get a travel plan',
+    });
+  }
+  
+  return alerts;
+}
+
+// Main computation function
+export function computePlan(inputs: Inputs): PlanResult {
+  const landingDate = parseUTCDate(inputs.landingDate);
+  const timeline = buildTimeline(inputs);
+  calculateResidentTests(timeline);
+  calculateSums(timeline);
+  calculateFinalStatus(timeline);
+  
+  const arrivalFY = getFinancialYear(landingDate);
+  const rnorFYs = timeline.filter(row => row.finalStatus === 'RNOR').map(row => row.fyLabel);
+  const rorFYs = timeline.filter(row => row.finalStatus === 'ROR').map(row => row.fyLabel);
+  const window = findRNORWindow(timeline, landingDate);
+  
+  const bestTimeToRealizeRSUs = rnorFYs.length > 0 ? 'During RNOR' : 'Not Ideal';
+  
+  const note = `Based on midpoint estimates: ${inputs.blocks.A.choice} (${CHOICE_TO_DAYS[inputs.blocks.A.choice]} days), ${inputs.blocks.B.choice} (${CHOICE_TO_DAYS[inputs.blocks.B.choice]} days), ${inputs.blocks.C.choice} (${CHOICE_TO_DAYS[inputs.blocks.C.choice]} days). Resident from landing→Mar 31 and full next FY. Last-7 sum: ${timeline[timeline.length - 1].last7Sum} days. Resident years in last 10: ${timeline[timeline.length - 1].residentYearsInLast10}.`;
+  
+  const alerts = generateAlerts(timeline, landingDate);
+  
   return {
     arrivalFY,
-    rnorYears,
-    rorYears,
+    rnorYears: rnorFYs,
+    rorYears: rorFYs,
     note,
     window,
     timeline,
-    bestTimeToRealizeRSUs: rnorYears.length > 0 ? 'During RNOR' : 'Not Ideal',
+    bestTimeToRealizeRSUs,
     guardrail: {
-      text: `To guarantee NR in FY ${arrivalFY}: ≤59 days.`,
-      capDays: 59
+      text: `To guarantee NR in FY ${timeline[timeline.length - 1].fyLabel}: ≤59 days`,
+      capDays: 59,
     },
-    alerts
+    alerts,
   };
 }
