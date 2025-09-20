@@ -4,47 +4,32 @@ import { useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { estimateRNOR } from "@/lib/rnor";
-import { Timeline, TimelineItem } from "@/components/Timeline";
+import { computePlan } from "@/lib/rnor";
+import { Timeline } from "@/components/Timeline";
+import { Inputs } from "@/types/rnor";
 
 function ResultsContent() {
   const searchParams = useSearchParams();
   const date = searchParams.get('date');
   const d7 = searchParams.get('d7');
 
-  // Calculate RNOR results using the estimateRNOR function
-  const rnorResults = useMemo(() => {
-    if (!date) return null;
-    
-    const landingDate = new Date(date);
-    const past7yrIndiaDays = d7 ? parseInt(d7) : undefined;
-    return estimateRNOR(landingDate, past7yrIndiaDays);
+  // Create inputs from URL parameters
+  const inputs = useMemo((): Inputs => {
+    return {
+      landingDate: date || new Date().toISOString().slice(0, 10),
+      region: 'US',
+      blocks: {
+        A: { choice: 'rarely', hasSpike: false, years: 3 },
+        B: { choice: 'rarely', hasSpike: false, years: 4 },
+        C: { choice: 'rarely', hasSpike: false, years: 3 },
+      },
+    };
   }, [date, d7]);
 
-  // Create timeline data for the Timeline component
-  const timelineData = useMemo((): TimelineItem[] => {
-    if (!rnorResults) return [];
-    
-    const items: TimelineItem[] = [];
-    
-    // Add one NR year before arrival
-    const arrivalFY = rnorResults.arrivalFY;
-    const [arrivalStartYear] = arrivalFY.split('-');
-    const prevFY = `${parseInt(arrivalStartYear) - 1}-${arrivalStartYear.slice(-2)}`;
-    items.push({ label: prevFY, status: "NR" });
-    
-    // Add RNOR years
-    rnorResults.rnorFYs.forEach(fy => {
-      items.push({ label: fy, status: "RNOR" });
-    });
-    
-    // Add first two ROR years
-    rnorResults.rorFYs.slice(0, 2).forEach(fy => {
-      items.push({ label: fy, status: "ROR" });
-    });
-    
-    return items;
-  }, [rnorResults]);
+  // Calculate RNOR results using the computePlan function
+  const plan = useMemo(() => {
+    return computePlan(inputs);
+  }, [inputs]);
 
   // If no parameters provided, show error message
   if (!date) {
@@ -58,32 +43,6 @@ function ResultsContent() {
             <CardContent className="space-y-4">
               <p className="text-neutral-600">
                 Go back and enter your landing date.
-              </p>
-              <Button 
-                onClick={() => window.history.back()}
-                className="w-full"
-              >
-                Go Back
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    );
-  }
-
-  // If date is invalid, show error
-  if (!rnorResults) {
-    return (
-      <main className="min-h-screen bg-[#f6f0e8] flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invalid Date</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-neutral-600">
-                Please enter a valid landing date.
               </p>
               <Button 
                 onClick={() => window.history.back()}
@@ -121,21 +80,21 @@ function ResultsContent() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-neutral-500 mb-2">Arrival FY</div>
-                  <div className="text-2xl font-semibold">{rnorResults.arrivalFY}</div>
+                  <div className="text-2xl font-semibold">{plan.arrivalFY}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-neutral-500 mb-2">RNOR Years</div>
-                  <div className="text-2xl font-semibold">{rnorResults.rnorFYs.length}</div>
-                  <div className="text-xs text-neutral-600 mt-1">{rnorResults.rnorFYs.join(', ')}</div>
+                  <div className="text-2xl font-semibold">{plan.rnorYears.length}</div>
+                  <div className="text-xs text-neutral-600 mt-1">{plan.rnorYears.join(', ')}</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-sm text-neutral-500 mb-2">ROR Years</div>
-                  <div className="text-2xl font-semibold">{rnorResults.rorFYs.length}</div>
-                  <div className="text-xs text-neutral-600 mt-1">{rnorResults.rorFYs.join(', ')}</div>
+                  <div className="text-2xl font-semibold">{plan.rorYears.length}</div>
+                  <div className="text-xs text-neutral-600 mt-1">{plan.rorYears.join(', ')}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -147,18 +106,20 @@ function ResultsContent() {
             </div>
             
             {/* RNOR Window */}
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-              <div className="text-sm text-green-800 mb-1">YOUR RNOR WINDOW</div>
-              <div className="text-2xl font-semibold text-green-900">
-                {rnorResults.rnorFYs.join(' to ')}
+            {plan.window && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="text-sm text-green-800 mb-1">YOUR RNOR WINDOW</div>
+                <div className="text-2xl font-semibold text-green-900">
+                  {plan.window.startFY} to {plan.window.endFY}
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Assumption Note */}
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-6">
                 <div className="text-sm text-blue-800">
-                  <strong>Note:</strong> {rnorResults.assumptionNote}
+                  <strong>Note:</strong> {plan.note}
                 </div>
               </CardContent>
             </Card>
@@ -171,21 +132,7 @@ function ResultsContent() {
             <CardTitle>Tax Residency Timeline</CardTitle>
           </CardHeader>
           <CardContent>
-            <Timeline items={timelineData} />
-            <div className="mt-6 flex flex-wrap gap-4 text-xs text-neutral-600">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>NR - Non-Resident</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span>RNOR - Resident but Not Ordinarily Resident</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span>ROR - Resident and Ordinarily Resident</span>
-              </div>
-            </div>
+            <Timeline timeline={plan.timeline} />
           </CardContent>
         </Card>
 

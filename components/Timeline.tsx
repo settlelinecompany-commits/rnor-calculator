@@ -1,42 +1,54 @@
-import React from 'react';
+"use client";
 
-export interface TimelineItem {
-  label: string;
-  status: "NR" | "RNOR" | "ROR";
-}
+import { Badge } from "@/components/ui/badge";
+import { FYRow } from "@/types/rnor";
 
 interface TimelineProps {
-  items: TimelineItem[];
+  timeline: FYRow[];
 }
 
-const getStatusStyles = (status: TimelineItem['status']) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case "NR":
-      return "bg-blue-500 text-white";
-    case "RNOR":
-      return "bg-green-500 text-white";
-    case "ROR":
-      return "bg-red-500 text-white";
+    case 'NR':
+      return 'bg-blue-500 text-white';
+    case 'RNOR':
+      return 'bg-green-500 text-white';
+    case 'ROR':
+      return 'bg-red-500 text-white';
     default:
-      return "bg-gray-500 text-white";
+      return 'bg-gray-500 text-white';
   }
 };
 
-export function Timeline({ items }: TimelineProps) {
+export function Timeline({ timeline }: TimelineProps) {
   return (
-    <div className="flex flex-wrap gap-3">
-      {items.map((item, index) => (
-        <div
-          key={index}
-          className={`
-            px-4 py-2 rounded-2xl text-sm font-medium
-            ${getStatusStyles(item.status)}
-            transition-all duration-200 hover:scale-105
-          `}
-        >
-          {item.label}
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {timeline.map((row, index) => (
+          <Badge
+            key={index}
+            className={`${getStatusColor(row.finalStatus)} hover:opacity-80 transition-opacity`}
+          >
+            {row.fyLabel}
+          </Badge>
+        ))}
+      </div>
+      
+      {/* Legend */}
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+          <span>NR - Non-Resident</span>
         </div>
-      ))}
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+          <span>RNOR - Resident but Not Ordinarily Resident</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+          <span>ROR - Resident and Ordinarily Resident</span>
+        </div>
+      </div>
     </div>
   );
 }
