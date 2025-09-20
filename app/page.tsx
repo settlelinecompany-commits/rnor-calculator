@@ -28,23 +28,12 @@ const defaultInputs: Inputs = {
 
 export default function Page() {
   const [inputs, setInputs] = useState<Inputs>(defaultInputs);
-  const [throttledInputs, setThrottledInputs] = useState<Inputs>(inputs);
 
   const handleInputsChange = useCallback((newInputs: Inputs) => {
     setInputs(newInputs);
   }, []);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setThrottledInputs(inputs);
-    }, 150); // 150ms throttle
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [inputs]);
-
-  const plan: PlanResult = useMemo(() => computePlan(throttledInputs), [throttledInputs]);
+  const plan: PlanResult = useMemo(() => computePlan(inputs), [inputs]);
 
   const handleResetBlocks = useCallback(() => {
     setInputs(prev => ({
@@ -57,9 +46,13 @@ export default function Page() {
     }));
   }, []);
 
+  const scrollToResults = () => {
+    document.getElementById('results')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <main className="min-h-screen bg-[#f6f0e8]">
-      <div className="mx-auto max-w-5xl px-4 py-6 md:py-8 space-y-6 md:space-y-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 md:py-8 space-y-6 md:space-y-8">
         {/* Hero Copy */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl md:text-4xl font-serif tracking-tight">
@@ -70,31 +63,91 @@ export default function Page() {
           </p>
         </div>
 
-        <InputsCard
-          inputs={inputs}
-          onInputsChange={handleInputsChange}
-          onRecalculate={() => setThrottledInputs(inputs)}
-          onResetBlocks={handleResetBlocks}
-        />
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* Left Column - Inputs (65-70%) */}
+          <div className="lg:col-span-2 space-y-6">
+            <InputsCard
+              inputs={inputs}
+              onInputsChange={handleInputsChange}
+              onResetBlocks={handleResetBlocks}
+            />
+            
+            {/* Auto-update helper */}
+            <p className="text-sm text-muted-foreground text-center lg:text-left">
+              Calculations update automatically.
+            </p>
+          </div>
 
-        {/* Value Card */}
-        <Card className="p-5 md:p-6 rounded-2xl shadow-sm">
-          <CardContent className="flex items-start gap-4">
-            <div className="text-2xl">💡</div>
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Why this matters</h3>
-              <p className="text-neutral-700">
-                During RNOR, foreign assets (stocks, RSUs, 401k, property) can be sold tax-free in India. 
-                Missing this window could cost you lakhs.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                RNOR doesn&apos;t change US taxes; it prevents Indian tax on certain foreign gains.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Right Column - Compact Explainer (30-35%) */}
+          <div className="lg:col-span-1">
+            <Card className="p-4 rounded-2xl shadow-sm h-fit">
+              <CardContent className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-1">Why your return date matters</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your RNOR years are a temporary tax-free window in India for certain foreign gains.
+                  </p>
+                </div>
 
-        <div aria-live="polite">
+                {/* Color Legend */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded bg-blue-500"></div>
+                    <span>NR — Non-Resident</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded bg-green-500"></div>
+                    <span>RNOR — Resident but Not Ordinarily Resident</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded bg-red-500"></div>
+                    <span>ROR — Resident and Ordinarily Resident</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    These colors match the timeline below.
+                  </p>
+                </div>
+
+                {/* Outcome Rows */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2">
+                      <span>💰</span>
+                      <span>Best years to realize foreign gains</span>
+                    </span>
+                    <span className="font-medium text-green-600">During RNOR</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2">
+                      <span>🌍</span>
+                      <span>Foreign income taxed in India</span>
+                    </span>
+                    <span className="font-medium text-green-600">Lower</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="flex items-center gap-2">
+                      <span>📈</span>
+                      <span>Capital gains on foreign assets</span>
+                    </span>
+                    <span className="font-medium text-green-600">Tax-free</span>
+                  </div>
+                </div>
+
+                {/* Primary Action */}
+                <button
+                  onClick={scrollToResults}
+                  className="w-full mt-4 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                >
+                  See your RNOR years →
+                </button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Results Section */}
+        <div id="results" aria-live="polite">
           <ResultsPanel plan={plan} />
         </div>
 

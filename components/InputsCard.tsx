@@ -13,7 +13,6 @@ import { generateBlockYearRanges } from "@/lib/utils";
 interface InputsCardProps {
   inputs: Inputs;
   onInputsChange: (inputs: Inputs) => void;
-  onRecalculate: () => void;
   onResetBlocks: () => void;
 }
 
@@ -101,7 +100,7 @@ function BlockSlider({ block, choice, onChoiceChange }: BlockSliderProps) {
   );
 }
 
-export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCardProps) {
+export function InputsCard({ inputs, onInputsChange }: InputsCardProps) {
   const blocks = getBlocksWithYearRanges(inputs.landingDate);
   const updateInputs = (updates: Partial<Inputs>) => {
     onInputsChange({ ...inputs, ...updates });
@@ -170,12 +169,6 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
           </div>
         </div>
 
-        {/* Recalculate Button - Right Aligned */}
-        <div className="flex justify-end">
-          <Button onClick={onRecalculate} className="bg-green-600 hover:bg-green-700">
-            Recalculate
-          </Button>
-        </div>
 
         {/* Residency Inputs - 3-4-3 Sliders */}
         <Card className="bg-muted/20">
