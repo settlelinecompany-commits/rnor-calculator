@@ -56,7 +56,7 @@ export default function Page() {
         {/* New Hero Copy */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl md:text-4xl font-serif tracking-tight">
-            Will India tax your US income when you move back?
+            When are you moving back to India?
           </h1>
           <p className="text-lg text-neutral-600 max-w-2xl mx-auto">
             Find out if you qualify for a tax-free window (RNOR) — and how to extend it.
