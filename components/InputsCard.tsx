@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Inputs, BlockChoice } from "@/types/rnor";
+import { generateBlockYearRanges } from "@/lib/utils";
 
 interface InputsCardProps {
   inputs: Inputs;
@@ -22,29 +23,39 @@ const SLIDER_OPTIONS = [
   { value: 'mostly', label: 'Mostly (181–240 days)', days: 240 },
 ];
 
-const BLOCKS = [
-  {
-    key: 'A' as const,
-    title: 'Last 3 FYs',
-    description: 'In the last 3 years before moving back, how many days did you usually spend in India each year?',
-    years: 3,
-  },
-  {
-    key: 'B' as const,
-    title: 'The 4 FYs before that',
-    description: 'In the 4 years before that, how many days were you usually in India each year?',
-    years: 4,
-  },
-  {
-    key: 'C' as const,
-    title: 'The 3 FYs before that',
-    description: 'And in the 3 years before that, how many days were you usually in India each year?',
-    years: 3,
-  },
-];
+// Generate dynamic blocks with year ranges based on landing date
+function getBlocksWithYearRanges(landingDate: string) {
+  const yearRanges = generateBlockYearRanges(landingDate);
+  
+  return [
+    {
+      key: 'A' as const,
+      title: `Last 3 FYs (${yearRanges.blockA.join(', ')})`,
+      description: 'In the last 3 years before moving back, how many days did you usually spend in India each year?',
+      years: 3,
+    },
+    {
+      key: 'B' as const,
+      title: `The 4 FYs before that (${yearRanges.blockB.join(', ')})`,
+      description: 'In the 4 years before that, how many days were you usually in India each year?',
+      years: 4,
+    },
+    {
+      key: 'C' as const,
+      title: `The 3 FYs before that (${yearRanges.blockC.join(', ')})`,
+      description: 'And in the 3 years before that, how many days were you usually in India each year?',
+      years: 3,
+    },
+  ];
+}
 
 interface BlockSliderProps {
-  block: typeof BLOCKS[0];
+  block: {
+    key: 'A' | 'B' | 'C';
+    title: string;
+    description: string;
+    years: number;
+  };
   choice: BlockChoice;
   onChoiceChange: (choice: BlockChoice) => void;
 }
@@ -53,13 +64,10 @@ function BlockSlider({ block, choice, onChoiceChange }: BlockSliderProps) {
   const currentIndex = SLIDER_OPTIONS.findIndex(opt => opt.value === choice);
   
   return (
-    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+    <div className="space-y-3 p-3 border rounded-lg bg-muted/20">
       <div>
         <h4 className="font-semibold text-sm mb-1">{block.title}</h4>
-        <p className="text-sm text-muted-foreground mb-3">{block.description}</p>
-        <p className="text-xs text-muted-foreground mb-3">
-          Choose the option that best matches most years in this period.
-        </p>
+        <p className="text-sm text-muted-foreground mb-2">{block.description}</p>
       </div>
       
       {/* Slider */}
@@ -88,6 +96,7 @@ function BlockSlider({ block, choice, onChoiceChange }: BlockSliderProps) {
 }
 
 export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCardProps) {
+  const blocks = getBlocksWithYearRanges(inputs.landingDate);
   const updateInputs = (updates: Partial<Inputs>) => {
     onInputsChange({ ...inputs, ...updates });
   };
@@ -167,9 +176,12 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle className="text-lg font-semibold">Improve accuracy</CardTitle>
+                <CardTitle className="text-lg font-semibold">Residency Inputs</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Estimate your India stays across the last 10 years
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Choose the option that best matches most years in each period.
                 </p>
               </div>
               <Button variant="ghost" size="sm" onClick={resetToDefault} className="text-sm text-muted-foreground">
@@ -177,9 +189,9 @@ export function InputsCard({ inputs, onInputsChange, onRecalculate }: InputsCard
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="pt-0 space-y-6">
+          <CardContent className="pt-0 space-y-4">
             {/* Three Stacked Sliders */}
-            {BLOCKS.map((block) => (
+            {blocks.map((block) => (
               <BlockSlider
                 key={block.key}
                 block={block}
