@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Inputs, PlanResult } from "@/types/rnor";
 import { InputsCard } from "@/components/InputsCard";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { computePlan } from "@/lib/rnor";
-import { ExplainerCard } from "@/components/ExplainerCard";
 import { FAQCard } from "@/components/FAQCard";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -151,7 +150,6 @@ export default function Page() {
           <ResultsPanel plan={plan} />
         </div>
 
-        <ExplainerCard />
         <FAQCard />
       </div>
     </main>

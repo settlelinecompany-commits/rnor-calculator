@@ -3,9 +3,9 @@ import { generateDaysByYear } from '@/lib/utils';
 
 // Map choices to upper bounds (conservative approach)
 const CHOICE_TO_DAYS: Record<BlockChoice, number> = {
-  rarely: 60,
+  rarely: 59,
   sometimes: 120,
-  frequently: 180,
+  frequently: 183,
   mostly: 240,
 };
 

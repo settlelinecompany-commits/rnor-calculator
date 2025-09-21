@@ -17,10 +17,10 @@ interface InputsCardProps {
 }
 
 const SLIDER_OPTIONS = [
-  { value: 'rarely', label: 'Rarely (0–60 days/year)', days: 60 },
-  { value: 'sometimes', label: 'Sometimes (61–120 days/year)', days: 120 },
-  { value: 'frequently', label: 'Often (121–180 days/year)', days: 180 },
-  { value: 'mostly', label: 'Mostly (181–240 days/year)', days: 240 },
+  { value: 'rarely', label: 'Rarely', days: 59, tooltip: '0–59 days/year' },
+  { value: 'sometimes', label: 'Sometimes', days: 120, tooltip: '60–120 days/year' },
+  { value: 'frequently', label: 'Often', days: 183, tooltip: '121–183 days/year' },
+  { value: 'mostly', label: 'Mostly', days: 240, tooltip: '184–240 days/year' },
 ];
 
 // Generate dynamic blocks with year ranges based on landing date
@@ -89,9 +89,23 @@ function BlockSlider({ block, choice, onChoiceChange }: BlockSliderProps) {
         <div className="flex justify-between text-xs text-muted-foreground">
           {SLIDER_OPTIONS.map((option, index) => (
             <div key={option.value} className="text-center">
-              <div className={`font-medium ${index === currentIndex ? 'text-foreground' : ''}`}>
-                {option.label}
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div 
+                      className={`font-medium cursor-help ${index === currentIndex ? 'text-foreground' : ''}`}
+                      tabIndex={0}
+                      role="button"
+                      aria-describedby={`tooltip-${option.value}`}
+                    >
+                      {option.label}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent id={`tooltip-${option.value}`}>
+                    <p>{option.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           ))}
         </div>
@@ -214,6 +228,11 @@ export function InputsCard({ inputs, onInputsChange }: InputsCardProps) {
                 We use the upper end of each range to stay conservative and avoid overstating tax-free years.
               </p>
             </div>
+            
+            {/* Helper Text */}
+            <p className="text-xs text-muted-foreground mt-2">
+              We use the upper end of your selection to stay conservative.
+            </p>
           </CardContent>
         </Card>
       </CardContent>

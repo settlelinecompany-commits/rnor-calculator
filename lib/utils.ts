@@ -51,9 +51,9 @@ export function generateDaysByYear(landingDate: string, blockChoices: {
   
   // Upper bound mapping
   const sliderToDaysUpperBound = {
-    'rarely': 60,
+    'rarely': 59,
     'sometimes': 120,
-    'frequently': 180,
+    'frequently': 183,
     'mostly': 240
   };
   
