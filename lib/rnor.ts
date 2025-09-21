@@ -48,7 +48,8 @@ function getPreviousFinancialYear(fy: string): string {
 // Calculate days from landing date to end of financial year (inclusive)
 function getDaysFromLandingToFYEnd(landingDate: Date): number {
   const landingFY = getFinancialYear(landingDate);
-  const fyEndDate = new Date(Date.UTC(parseInt(landingFY.split('-')[1]), 2, 31)); // March 31
+  const fyEndYear = parseInt(landingFY.split('-')[1]) + 2000; // Convert 2-digit to 4-digit year
+  const fyEndDate = new Date(Date.UTC(fyEndYear, 2, 31)); // March 31
   const diffTime = fyEndDate.getTime() - landingDate.getTime();
   return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1); // +1 for inclusive
 }
