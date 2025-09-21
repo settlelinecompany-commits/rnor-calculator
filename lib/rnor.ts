@@ -146,15 +146,15 @@ function calculateResidentTests(timeline: FYRow[]): void {
 // Calculate last 7 sum and resident years in last 10
 function calculateSums(timeline: FYRow[]): void {
   timeline.forEach((row, index) => {
-    // Last 7 sum (including current FY)
+    // Last 7 sum (excluding current FY - only preceding 7 FYs)
     const last7Sum = timeline
-      .slice(Math.max(0, index - 6), index + 1)
+      .slice(Math.max(0, index - 7), index)
       .reduce((sum, r) => sum + r.daysInIndia, 0);
     row.last7Sum = last7Sum;
     
-    // Resident years in last 10 (including current FY)
+    // Resident years in last 10 (excluding current FY - only preceding 10 FYs)
     const last10ResidentYears = timeline
-      .slice(Math.max(0, index - 9), index + 1)
+      .slice(Math.max(0, index - 10), index)
       .filter(r => r.residentTest === 'Resident').length;
     row.residentYearsInLast10 = last10ResidentYears;
   });
