@@ -141,6 +141,7 @@ function calculateResidentTests(timeline: FYRow[]): void {
     }
     
     row.residentTest = isResident ? 'Resident' : 'NR';
+    
   });
 }
 
@@ -161,16 +162,9 @@ function calculateSums(timeline: FYRow[]): void {
   });
 }
 
-// Calculate final status (RNOR vs ROR) and continue until first ROR
+// Calculate final status (RNOR vs ROR) for all years
 function calculateFinalStatus(timeline: FYRow[]): void {
-  let foundFirstROR = false;
-  
   timeline.forEach((row, index) => {
-    if (foundFirstROR) {
-      // Stop after first ROR
-      return;
-    }
-    
     if (row.residentTest === 'NR') {
       row.finalStatus = 'NR';
     } else {
@@ -179,10 +173,6 @@ function calculateFinalStatus(timeline: FYRow[]): void {
       // 2. Sum of last 7 FYs days >= 730
       const isROR = row.residentYearsInLast10 >= 2 && row.last7Sum >= 730;
       row.finalStatus = isROR ? 'ROR' : 'RNOR';
-      
-      if (isROR) {
-        foundFirstROR = true;
-      }
     }
   });
 }
@@ -209,6 +199,27 @@ function findRNORWindow(timeline: FYRow[], landingDate: Date): { startFY: string
     startFY: validFYs[0].fyLabel,
     endFY: validFYs[validFYs.length - 1].fyLabel,
   };
+}
+
+// Filter timeline to show only from landing date forward until first ROR
+function filterTimelineForUser(timeline: FYRow[], landingDate: Date): FYRow[] {
+  const arrivalFY = getFinancialYear(landingDate);
+  const arrivalIndex = timeline.findIndex(row => row.fyLabel === arrivalFY);
+  
+  if (arrivalIndex === -1) return timeline;
+  
+  // Find first ROR year after landing
+  let firstRORIndex = -1;
+  for (let i = arrivalIndex; i < timeline.length; i++) {
+    if (timeline[i].finalStatus === 'ROR') {
+      firstRORIndex = i;
+      break;
+    }
+  }
+  
+  // Include from landing date to first ROR (inclusive) or end of timeline
+  const endIndex = firstRORIndex !== -1 ? firstRORIndex + 1 : timeline.length;
+  return timeline.slice(arrivalIndex, endIndex);
 }
 
 // Generate alerts
@@ -266,21 +277,24 @@ function generateAlerts(timeline: FYRow[], landingDate: Date): PlanResult['alert
 // Main computation function
 export function computePlan(inputs: Inputs): PlanResult {
   const landingDate = parseUTCDate(inputs.landingDate);
-  const timeline = buildTimeline(inputs);
-  calculateResidentTests(timeline);
-  calculateSums(timeline);
-  calculateFinalStatus(timeline);
+  const fullTimeline = buildTimeline(inputs);
+  calculateResidentTests(fullTimeline);
+  calculateSums(fullTimeline);
+  calculateFinalStatus(fullTimeline);
+  
+  // Filter timeline to show only from landing date forward until first ROR
+  const timeline = filterTimelineForUser(fullTimeline, landingDate);
   
   const arrivalFY = getFinancialYear(landingDate);
   const rnorFYs = timeline.filter(row => row.finalStatus === 'RNOR').map(row => row.fyLabel);
   const rorFYs = timeline.filter(row => row.finalStatus === 'ROR').map(row => row.fyLabel);
-  const window = findRNORWindow(timeline, landingDate);
+  const window = findRNORWindow(fullTimeline, landingDate);
   
   const bestTimeToRealizeRSUs = rnorFYs.length > 0 ? 'During RNOR' : 'Not Ideal';
   
-  const note = `Based on midpoint estimates: ${inputs.blocks.A.choice} (${CHOICE_TO_DAYS[inputs.blocks.A.choice]} days), ${inputs.blocks.B.choice} (${CHOICE_TO_DAYS[inputs.blocks.B.choice]} days), ${inputs.blocks.C.choice} (${CHOICE_TO_DAYS[inputs.blocks.C.choice]} days). Resident from landing→Mar 31 and full next FY. Last-7 sum: ${timeline[timeline.length - 1].last7Sum} days. Resident years in last 10: ${timeline[timeline.length - 1].residentYearsInLast10}.`;
+  const note = `Based on midpoint estimates: ${inputs.blocks.A.choice} (${CHOICE_TO_DAYS[inputs.blocks.A.choice]} days), ${inputs.blocks.B.choice} (${CHOICE_TO_DAYS[inputs.blocks.B.choice]} days), ${inputs.blocks.C.choice} (${CHOICE_TO_DAYS[inputs.blocks.C.choice]} days). Resident from landing→Mar 31 and full next FY. Last-7 sum: ${fullTimeline[fullTimeline.length - 1].last7Sum} days. Resident years in last 10: ${fullTimeline[fullTimeline.length - 1].residentYearsInLast10}.`;
   
-  const alerts = generateAlerts(timeline, landingDate);
+  const alerts = generateAlerts(fullTimeline, landingDate);
   
   return {
     arrivalFY,
@@ -291,7 +305,7 @@ export function computePlan(inputs: Inputs): PlanResult {
     timeline,
     bestTimeToRealizeRSUs,
     guardrail: {
-      text: `To guarantee NR in FY ${timeline[timeline.length - 1].fyLabel}: ≤59 days`,
+      text: `To guarantee NR in FY ${timeline[timeline.length - 1]?.fyLabel || arrivalFY}: ≤59 days`,
       capDays: 59,
     },
     alerts,
