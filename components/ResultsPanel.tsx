@@ -3,8 +3,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Timeline } from "@/components/Timeline";
-import { Alerts } from "@/components/Alerts";
 import { PlanResult } from "@/types/rnor";
 import { Calendar } from "lucide-react";
 
@@ -125,23 +123,7 @@ export function ResultsPanel({ plan }: ResultsPanelProps) {
         </Card>
       )}
 
-      {/* Timeline */}
-      <Card>
-        <CardContent className="p-5 md:p-6">
-          <h3 className="text-lg font-semibold mb-3">When is it safe to sell?</h3>
-          <Timeline 
-            items={plan.timeline.map(row => ({
-              label: row.fyLabel,
-              status: row.finalStatus === 'NR' || row.finalStatus === 'RNOR' ? 'NR' : 'ROR'
-            }))} 
-          />
-        </CardContent>
-      </Card>
 
-      {/* Alerts */}
-      {plan.alerts.length > 0 && (
-        <Alerts alerts={plan.alerts} />
-      )}
 
       {/* Final CTA Section - Reinforcement */}
       <Card className="border-blue-200 bg-blue-50">

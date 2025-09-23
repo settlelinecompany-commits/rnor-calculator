@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Inputs, PlanResult } from "@/types/rnor";
 import { InputsCard } from "@/components/InputsCard";
 import { ResultsPanel } from "@/components/ResultsPanel";
+import { Timeline } from "@/components/Timeline";
 import { computePlan } from "@/lib/rnor";
 import { FAQCard } from "@/components/FAQCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -140,6 +141,19 @@ export default function Page() {
                 >
                   See your RNOR years →
                 </button>
+              </CardContent>
+            </Card>
+
+            {/* Timeline Section */}
+            <Card className="p-4 rounded-2xl shadow-sm">
+              <CardContent className="space-y-4">
+                <h3 className="text-lg font-semibold mb-3">When is it safe to sell?</h3>
+                <Timeline 
+                  items={plan.timeline.map(row => ({
+                    label: row.fyLabel,
+                    status: row.finalStatus === 'NR' || row.finalStatus === 'RNOR' ? 'NR' : 'ROR'
+                  }))} 
+                />
               </CardContent>
             </Card>
           </div>
